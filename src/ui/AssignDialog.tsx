@@ -33,13 +33,44 @@ export function AssignDialog({ trip, drivers, now, onAssign, onClose }: Props) {
   const mounted = useRef(true);
   const closeRef = useRef<HTMLButtonElement>(null);
 
+  const dialogRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
     closeRef.current?.focus();
     mounted.current = true;
     return () => {
       mounted.current = false;
+      previous?.focus?.();
     };
   }, []);
+
+  function onKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    if (e.key === 'Escape') {
+      if (confirmId !== null) {
+        e.stopPropagation();
+        setConfirmId(null);
+      } else if (!pending) {
+        onClose();
+      }
+      return;
+    }
+    if (e.key !== 'Tab') return;
+    const items = Array.from(
+      dialogRef.current?.querySelectorAll<HTMLElement>('button:not([disabled])') ?? [],
+    );
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (!first || !last) return;
+    const active = document.activeElement;
+    if (e.shiftKey && (active === first || !dialogRef.current?.contains(active))) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && (active === last || !dialogRef.current?.contains(active))) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
 
   async function assign(driverId: string) {
     setPending(true);
@@ -64,13 +95,12 @@ export function AssignDialog({ trip, drivers, now, onAssign, onClose }: Props) {
   return (
     <div className={styles.backdrop}>
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="assign-title"
         className={styles.dialog}
-        onKeyDown={(e) => {
-          if (e.key === 'Escape' && !pending) onClose();
-        }}
+        onKeyDown={onKeyDown}
       >
         <header className={styles.header}>
           <div>

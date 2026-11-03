@@ -111,11 +111,10 @@ export function createSupabaseRepo(client: SupabaseClient): FleetRepo {
       if (channel !== c) return;
       if (status === "SUBSCRIBED") {
         setState("connected");
-        if (hasDropped) {
-          hasDropped = false;
-          refreshDrivers();
-          refreshTrips();
-        }
+        // Re-lista en cada SUBSCRIBED: cubre cambios previos a la suscripción y caídas.
+        hasDropped = false;
+        refreshDrivers();
+        refreshTrips();
       } else if (
         status === "CHANNEL_ERROR" ||
         status === "TIMED_OUT" ||

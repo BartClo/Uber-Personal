@@ -89,6 +89,28 @@ function tripRow(id: string, name: string): TripRow {
 const flush = () => new Promise((r) => setTimeout(r, 0));
 
 describe("createSupabaseRepo (fake client)", () => {
+  it("re-lists drivers and trips on the first SUBSCRIBED and delivers the data", async () => {
+    const fake = new FakeClient();
+    const repo = createSupabaseRepo(fake.asClient());
+    const tripsCb = vi.fn<(t: Trip[]) => void>();
+    repo.subscribeTrips(tripsCb);
+    repo.subscribeDrivers(() => {});
+    const before = {
+      drivers: fake.pending.drivers?.length ?? 0,
+      trips: fake.pending.trips?.length ?? 0,
+    };
+    fake.channels[0]?.statusCb?.("SUBSCRIBED");
+    expect(fake.pending.drivers?.length ?? 0).toBe(before.drivers + 1);
+    expect(fake.pending.trips?.length ?? 0).toBe(before.trips + 1);
+    fake.pending.trips?.[before.trips]?.({
+      data: [tripRow("t9", "otro admin")],
+      error: null,
+    });
+    await flush();
+    const last = tripsCb.mock.calls[tripsCb.mock.calls.length - 1]?.[0];
+    expect(last?.[0]?.customerName).toBe("otro admin");
+  });
+
   it("a removed channel's late CLOSED does not mark the new channel as reconnecting", async () => {
     const fake = new FakeClient();
     const repo = createSupabaseRepo(fake.asClient());

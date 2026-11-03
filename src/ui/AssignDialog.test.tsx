@@ -27,6 +27,39 @@ const setup = (drivers: Driver[], onAssign: (id: string) => Promise<AssignResult
 };
 
 describe('AssignDialog', () => {
+  it('Tab desde el último elemento enfocable vuelve al primero y Shift+Tab al último', async () => {
+    setup([mk({ id: 'a', name: 'Ana' })]);
+    const close = screen.getByRole('button', { name: 'Cerrar' });
+    const assign = screen.getByRole('button', { name: 'Asignar a Ana' });
+    assign.focus();
+    await userEvent.tab();
+    expect(close).toHaveFocus();
+    await userEvent.tab({ shift: true });
+    expect(assign).toHaveFocus();
+  });
+  it('restaura el foco al elemento previo al desmontar', () => {
+    const opener = document.createElement('button');
+    document.body.appendChild(opener);
+    opener.focus();
+    const { unmount } = render(
+      <AssignDialog trip={trip} drivers={[mk({})]} now={now} onAssign={okFn} onClose={() => {}} />,
+    );
+    expect(opener).not.toHaveFocus();
+    unmount();
+    expect(opener).toHaveFocus();
+    opener.remove();
+  });
+  it('Escape con la confirmación abierta solo la descarta', async () => {
+    const stale = mk({ id: 's', name: 'Sara', lastSeenAt: '2026-11-02T10:00:00Z' });
+    const { onClose } = setup([stale]);
+    await userEvent.click(screen.getByRole('button', { name: 'Asignar a Sara' }));
+    expect(screen.getByRole('button', { name: 'Asignar igual' })).toBeInTheDocument();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('button', { name: 'Asignar igual' })).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+    await userEvent.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
   it('es un diálogo modal con título, pedido y foco dentro', () => {
     setup([mk({ id: 'a', name: 'Ana' })]);
     const dlg = screen.getByRole('dialog', { name: 'Asignar a' });
