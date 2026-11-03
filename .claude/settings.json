@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(git push:*)",
+      "Bash(git reset --hard:*)",
+      "Bash(git clean:*)",
+      "Bash(git rebase:*)",
+      "Bash(git checkout main:*)",
+      "Bash(git branch -D:*)",
+      "Bash(rm -rf /:*)",
+      "Bash(rm -rf ~:*)",
+      "Bash(curl:*|*sh)",
+      "Bash(npm publish:*)",
+      "Bash(npx supabase db push:*)",
+      "Bash(npx supabase link:*)",
+      "PowerShell(git push:*)",
+      "PowerShell(git reset --hard:*)",
+      "PowerShell(git clean:*)",
+      "Read(./.env)",
+      "Read(./.env.local)"
+    ]
+  }
+}
