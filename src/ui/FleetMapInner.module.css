@@ -1,0 +1,4 @@
+.wrapper { position: relative; height: 100%; min-height: 360px; }
+.map { height: 100%; min-height: 360px; }
+.legend { position: absolute; z-index: 1000; bottom: 1.5rem; left: 0.75rem; margin: 0; padding: 0.5rem 0.75rem; list-style: none; background: #fff; color: #111827; border: 1px solid #4b5563; border-radius: 6px; font-size: 0.875rem; }
+.legend li { display: flex; align-items: center; gap: 0.5rem; }

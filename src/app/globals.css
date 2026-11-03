@@ -1,0 +1,14 @@
+
+/* Marcadores Leaflet (divIcon): clases globales. Texto blanco con contraste AA. */
+.marker-free, .marker-busy, .marker-stale, .marker-trip {
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid #fff; border-radius: 50%; color: #fff; font-weight: 700;
+  font-size: 0.8125rem; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+}
+.marker-free { background: #166534; }
+.marker-busy { background: #1d4ed8; }
+.marker-stale { background: #4b5563; }
+.marker-trip { background: #9a3412; border-radius: 4px; }
+.marker-selected { outline: 3px solid #111827; }
+.legend-dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; }
+.legend-dot.marker-trip { border-radius: 3px; }

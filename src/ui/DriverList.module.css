@@ -1,0 +1,12 @@
+.panel { display: flex; flex-direction: column; gap: 0.75rem; padding: 1rem; }
+.header { display: flex; justify-content: space-between; align-items: baseline; }
+.header h2 { margin: 0; font-size: 1.125rem; }
+.filters { display: flex; gap: 0.5rem; }
+.filter { padding: 0.5rem 0.75rem; min-height: 44px; border: 1px solid #4b5563; border-radius: 6px; background: #fff; color: #111827; cursor: pointer; }
+.filter[aria-pressed='true'] { background: #1e3a8a; color: #fff; border-color: #1e3a8a; }
+.filter:focus-visible { outline: 3px solid #1d4ed8; outline-offset: 2px; }
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+.row { display: grid; grid-template-columns: 3rem 1fr; gap: 0 0.5rem; padding: 0.5rem; border-bottom: 1px solid #e5e7eb; }
+.row[data-stale='true'] { color: #374151; background: #f3f4f6; }
+.taxi { grid-row: span 2; font-size: 1.25rem; }
+.status { font-size: 0.875rem; }
