@@ -47,7 +47,9 @@ export function DriverList({ drivers, now }: { drivers: Driver[]; now: Date }) {
               <strong className={styles.taxi}>{d.taxiNumber}</strong>
               <span className={styles.name}>{d.name}</span>
               <span className={styles.status}>
-                {status} · {formatLastSeen(d.lastSeenAt, now)}
+                {d.lastSeenAt === null
+                  ? status
+                  : `${status} · ${formatLastSeen(d.lastSeenAt, now)}`}
               </span>
             </li>
           );

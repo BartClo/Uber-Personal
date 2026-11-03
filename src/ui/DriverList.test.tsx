@@ -17,7 +17,8 @@ describe('DriverList', () => {
     render(<DriverList now={now} drivers={[mk({ id: 'a', name: 'Ana', lastSeenAt: null })]} />);
     const row = screen.getByText('Ana').closest('li')!;
     expect(row).toHaveAttribute('data-stale', 'true');
-    expect(row).toHaveTextContent(/Sin señal · sin señal/);
+    expect(screen.getByText('Sin señal')).toBeInTheDocument();
+    expect(row.textContent).not.toContain('sin señal');
   });
   it('visto hace 20 s no es stale, aun sin coordenadas', () => {
     render(<DriverList now={now} drivers={[mk({ name: 'Beto', lat: null, lng: null })]} />);

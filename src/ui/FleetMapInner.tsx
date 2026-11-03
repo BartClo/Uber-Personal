@@ -3,6 +3,7 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapContainer, Marker, TileLayer } from 'react-leaflet';
+import { driverStatusLabel } from '@/domain/labels';
 import { isStale } from '@/domain/freshness';
 import type { Driver, Trip } from '@/domain/types';
 import styles from './FleetMapInner.module.css';
@@ -12,6 +13,21 @@ export type MarkerClass = 'marker-free' | 'marker-busy' | 'marker-stale';
 export function driverMarkerClass(driver: Driver, now: Date): MarkerClass {
   if (isStale(driver.lastSeenAt, now) || driver.status === 'offline') return 'marker-stale';
   return driver.status === 'busy' ? 'marker-busy' : 'marker-free';
+}
+
+const iconCache = new Map<string, L.DivIcon>();
+function cachedIcon(className: string, html: string, size: number): L.DivIcon {
+  const key = `${className}|${html}|${size}`;
+  let icon = iconCache.get(key);
+  if (!icon) {
+    icon = L.divIcon({ className, html, iconSize: [size, size] });
+    iconCache.set(key, icon);
+  }
+  return icon;
+}
+
+function markerLabel(d: Driver, now: Date): string {
+  return isStale(d.lastSeenAt, now) ? 'Sin señal' : driverStatusLabel(d.status);
 }
 
 const SANTIAGO: [number, number] = [-33.4489, -70.6693];
@@ -38,11 +54,12 @@ export function FleetMapInner({ drivers, trips, now, selectedDriverId, onSelectD
               key={d.id}
               position={[d.lat, d.lng]}
               zIndexOffset={d.id === selectedDriverId ? 1000 : 0}
-              icon={L.divIcon({
-                className: `${driverMarkerClass(d, now)}${d.id === selectedDriverId ? ' marker-selected' : ''}`,
-                html: d.taxiNumber,
-                iconSize: [36, 36],
-              })}
+              title={`Taxi ${d.taxiNumber} · ${markerLabel(d, now)}`}
+              icon={cachedIcon(
+                `${driverMarkerClass(d, now)}${d.id === selectedDriverId ? ' marker-selected' : ''}`,
+                d.taxiNumber,
+                36,
+              )}
               eventHandlers={{ click: () => onSelectDriver?.(d.id) }}
             />
           ),
@@ -52,7 +69,8 @@ export function FleetMapInner({ drivers, trips, now, selectedDriverId, onSelectD
             <Marker
               key={t.id}
               position={[t.pickupLat, t.pickupLng]}
-              icon={L.divIcon({ className: 'marker-trip', html: '!', iconSize: [30, 30] })}
+              title={`Pedido en espera: ${t.customerName}`}
+              icon={cachedIcon('marker-trip', '!', 30)}
             />
           ),
         )}
