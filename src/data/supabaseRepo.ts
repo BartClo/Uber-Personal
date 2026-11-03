@@ -30,7 +30,6 @@ export function createSupabaseRepo(client: SupabaseClient): FleetRepo {
   const connSubs = new Set<(s: ConnectionState) => void>();
   let channel: RealtimeChannel | null = null;
   let state: ConnectionState | null = null;
-  let hasDropped = false;
 
   async function listDrivers(): Promise<Driver[]> {
     const { data, error } = await client
@@ -112,7 +111,6 @@ export function createSupabaseRepo(client: SupabaseClient): FleetRepo {
       if (status === "SUBSCRIBED") {
         setState("connected");
         // Re-lista en cada SUBSCRIBED: cubre cambios previos a la suscripción y caídas.
-        hasDropped = false;
         refreshDrivers();
         refreshTrips();
       } else if (
@@ -120,7 +118,6 @@ export function createSupabaseRepo(client: SupabaseClient): FleetRepo {
         status === "TIMED_OUT" ||
         status === "CLOSED"
       ) {
-        hasDropped = true;
         setState("reconnecting");
       }
     });
@@ -131,7 +128,6 @@ export function createSupabaseRepo(client: SupabaseClient): FleetRepo {
     const c = channel;
     channel = null;
     state = null;
-    hasDropped = false;
     void client.removeChannel(c);
   }
 
