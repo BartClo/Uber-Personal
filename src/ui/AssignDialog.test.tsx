@@ -101,4 +101,21 @@ describe('AssignDialog', () => {
     resolve({ ok: false, error: 'driver_unavailable' });
     expect(await screen.findByText('Ese taxista ya no está disponible')).toBeInTheDocument();
   });
+  it('si el taxista deja de ser asignable con la confirmación abierta, no hay Asignar igual', async () => {
+    const d = mk({ id: 'a', lastSeenAt: null });
+    const onAssign = vi.fn(okFn);
+    const props = { trip, now, onAssign, onClose: vi.fn() };
+    const { rerender } = render(<AssignDialog {...props} drivers={[d]} />);
+    await userEvent.click(screen.getByRole('button', { name: /^Asignar/ }));
+    expect(screen.getByRole('button', { name: 'Asignar igual' })).toBeEnabled();
+    rerender(<AssignDialog {...props} drivers={[{ ...d, status: 'offline' }]} />);
+    expect(screen.queryByRole('button', { name: 'Asignar igual' })).not.toBeInTheDocument();
+  });
+  it('Escape y Cerrar no cierran mientras está pendiente', async () => {
+    const { onClose } = setup([mk({})], () => new Promise<AssignResult>(() => {}));
+    await userEvent.click(screen.getByRole('button', { name: /^Asignar/ }));
+    await userEvent.keyboard('{Escape}');
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: 'Cerrar' })).toBeDisabled();
+  });
 });

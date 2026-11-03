@@ -30,11 +30,15 @@ export function AssignDialog({ trip, drivers, now, onAssign, onClose }: Props) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [locked, setLocked] = useState(false);
-  const dialogRef = useRef<HTMLDivElement>(null);
+  const mounted = useRef(true);
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     closeRef.current?.focus();
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
   }, []);
 
   async function assign(driverId: string) {
@@ -43,6 +47,7 @@ export function AssignDialog({ trip, drivers, now, onAssign, onClose }: Props) {
     setConfirmId(null);
     try {
       const result = await onAssign(driverId);
+      if (!mounted.current) return;
       if (result.ok) {
         onClose();
         return;
@@ -50,22 +55,21 @@ export function AssignDialog({ trip, drivers, now, onAssign, onClose }: Props) {
       setError(ERROR_MESSAGES[result.error]);
       if (result.error === 'already_assigned') setLocked(true);
     } catch {
-      setError(NETWORK_ERROR);
+      if (mounted.current) setError(NETWORK_ERROR);
     } finally {
-      setPending(false);
+      if (mounted.current) setPending(false);
     }
   }
 
   return (
     <div className={styles.backdrop}>
       <div
-        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="assign-title"
         className={styles.dialog}
         onKeyDown={(e) => {
-          if (e.key === 'Escape') onClose();
+          if (e.key === 'Escape' && !pending) onClose();
         }}
       >
         <header className={styles.header}>
@@ -80,6 +84,7 @@ export function AssignDialog({ trip, drivers, now, onAssign, onClose }: Props) {
             ref={closeRef}
             type="button"
             className={`${styles.btn} ${styles.secondary}`}
+            disabled={pending}
             onClick={onClose}
           >
             Cerrar
@@ -109,7 +114,7 @@ export function AssignDialog({ trip, drivers, now, onAssign, onClose }: Props) {
                 <span className={styles.meta}>
                   {stale ? 'Sin señal' : driverStatusLabel(d.status)} · {formatDistanceKm(distanceKm)}
                 </span>
-                {confirmId === d.id && (
+                {confirmId === d.id && stale && assignable && (
                   <div className={styles.confirm}>
                     <span>
                       {d.lastSeenAt === null
@@ -119,7 +124,7 @@ export function AssignDialog({ trip, drivers, now, onAssign, onClose }: Props) {
                     <button
                       type="button"
                       className={styles.btn}
-                      disabled={pending || locked}
+                      disabled={!assignable || pending || locked}
                       onClick={() => void assign(d.id)}
                     >
                       Asignar igual
