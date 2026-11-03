@@ -8,6 +8,7 @@ describe('ConnectionBanner', () => {
   it('sin texto cuando está conectado', () => {
     const { container } = render(<ConnectionBanner state="connected" />);
     expect(container.textContent).toBe('');
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
   });
   it('muestra "Reconectando…" con role=status', () => {
     render(<ConnectionBanner state="reconnecting" />);

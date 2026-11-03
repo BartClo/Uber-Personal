@@ -67,7 +67,7 @@ describe('Dashboard', () => {
   it('asignar mueve el pedido a "En curso" y el taxista queda "En viaje"', async () => {
     setup();
     await screen.findByText('Carla Díaz');
-    await userEvent.click(screen.getByRole('button', { name: /Asignar ?a Carla Díaz/ }));
+    await userEvent.click(screen.getByRole('button', { name: /Asignar a Carla Díaz/ }));
     const dialog = screen.getByRole('dialog');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Asignar a Ana Pérez' }));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
@@ -104,5 +104,28 @@ describe('Dashboard', () => {
     unmount();
     expect(() => repo.setConnection('reconnecting')).not.toThrow();
     expect(() => repo.seed({ drivers: drivers() })).not.toThrow();
+  });
+  it('la carga inicial tardía no pisa datos más nuevos de la suscripción', async () => {
+    const repo = new FakeRepo();
+    let resolveDrivers: (d: Driver[]) => void = () => {};
+    vi.spyOn(repo, 'listDrivers').mockReturnValueOnce(
+      new Promise<Driver[]>((r) => { resolveDrivers = r; }),
+    );
+    render(<Dashboard repo={repo} />);
+    act(() => repo.seed({ drivers: drivers() }));
+    expect(screen.getByText('Ana Pérez')).toBeInTheDocument();
+    await act(async () => { resolveDrivers([]); });
+    expect(screen.getByText('Ana Pérez')).toBeInTheDocument();
+  });
+
+  it('cierra el diálogo si el pedido seleccionado desaparece', async () => {
+    const repo = setup();
+    await screen.findByText('Carla Díaz');
+    await userEvent.click(screen.getByRole('button', { name: /Asignar a Carla Díaz/ }));
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    act(() => repo.seed({ trips: [] }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    act(() => repo.seed({ trips: trips() }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 });

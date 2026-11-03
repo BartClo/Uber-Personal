@@ -50,6 +50,10 @@
   font-weight: 600;
 }
 
+.bannerEmpty {
+  margin: 0;
+}
+
 .loadError {
   display: flex;
   align-items: center;

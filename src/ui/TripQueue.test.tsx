@@ -38,7 +38,7 @@ describe('TripQueue', () => {
     const onAssignClick = vi.fn();
     const trip = mk({ id: 'x' });
     render(<TripQueue trips={[trip]} drivers={[]} now={now} onAssignClick={onAssignClick} />);
-    await userEvent.click(screen.getByRole('button', { name: /Asignar/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Asignar a Cliente' }));
     expect(onAssignClick).toHaveBeenCalledWith(trip);
   });
   it('on_board aparece en En curso con taxista; completados no', () => {

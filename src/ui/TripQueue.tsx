@@ -41,8 +41,13 @@ export function TripQueue({
             {(t.pickupLat === null || t.pickupLng === null) && (
               <span>Sin ubicación en el mapa</span>
             )}
-            <button type="button" className={styles.button} onClick={() => onAssignClick(t)}>
-              Asignar<span className={styles.sr}> a {t.customerName}</span>
+            <button
+              type="button"
+              className={styles.button}
+              aria-label={`Asignar a ${t.customerName}`}
+              onClick={() => onAssignClick(t)}
+            >
+              Asignar
             </button>
           </li>
         ))}

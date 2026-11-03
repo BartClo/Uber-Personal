@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ConnectionState, FleetRepo, NewTripInput } from '@/data/repo';
 import type { Driver, Trip } from '@/domain/types';
 import { AssignDialog } from './AssignDialog';
@@ -22,10 +22,20 @@ export function Dashboard({ repo }: { repo: FleetRepo }) {
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(true);
+  // Collections already delivered by a subscription: a late initial load must not overwrite them.
+  const delivered = useRef({ drivers: false, trips: false });
 
   useEffect(() => {
-    const offD = repo.subscribeDrivers(setDrivers);
-    const offT = repo.subscribeTrips(setTrips);
+    delivered.current = { drivers: false, trips: false };
+    const offD = repo.subscribeDrivers((d) => {
+      delivered.current.drivers = true;
+      setDrivers(d);
+    });
+    const offT = repo.subscribeTrips((t) => {
+      delivered.current.trips = true;
+      setTrips(t);
+      setSelectedTripId((id) => (id && !t.some((x) => x.id === id) ? null : id));
+    });
     const offC = repo.subscribeConnection(setConnection);
     const timer = setInterval(() => setNow(new Date()), 1000);
     return () => {
@@ -41,8 +51,8 @@ export function Dashboard({ repo }: { repo: FleetRepo }) {
     Promise.all([repo.listDrivers(), repo.listTrips()]).then(
       ([d, t]) => {
         if (cancelled) return;
-        setDrivers(d);
-        setTrips(t);
+        if (!delivered.current.drivers) setDrivers(d);
+        if (!delivered.current.trips) setTrips(t);
         setLoadFailed(false);
       },
       () => {
