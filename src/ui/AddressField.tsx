@@ -149,7 +149,7 @@ export function AddressField({
           onKeyDown={handleKeyDown}
           onBlur={() => setOpen(false)}
         />
-        <ul id={listId} role="listbox" aria-label={`Sugerencias: ${label}`} className={styles.list} hidden={!expanded}>
+        <ul id={listId} role="listbox" aria-label="Sugerencias de dirección" className={styles.list} hidden={!expanded}>
           {options.map((o, i) => (
             <li
               key={`${o.label}-${o.lat}-${o.lng}`}
