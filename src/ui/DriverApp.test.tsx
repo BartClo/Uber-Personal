@@ -181,6 +181,7 @@ describe('DriverApp', () => {
         return 1;
       },
       clearWatch: () => undefined,
+      getCurrentPosition: () => undefined,
     };
     const { repo } = setup({ status: 'free' }, null, geo);
     await screen.findByText('Buscando ubicación…');
@@ -194,7 +195,11 @@ describe('DriverApp', () => {
   });
 
   it('desconectado no envía ubicación', async () => {
-    const geo: GeolocationLike = { watchPosition: vi.fn(() => 1), clearWatch: vi.fn() };
+    const geo: GeolocationLike = {
+      watchPosition: vi.fn(() => 1),
+      clearWatch: vi.fn(),
+      getCurrentPosition: vi.fn(),
+    };
     setup({ status: 'offline' }, null, geo);
     await screen.findByText(/Ubicación en pausa/);
     expect(geo.watchPosition).not.toHaveBeenCalled();

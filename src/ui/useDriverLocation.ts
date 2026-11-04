@@ -2,14 +2,23 @@
 
 import { useEffect, useState } from 'react';
 
+interface PositionLike {
+  coords: { latitude: number; longitude: number };
+}
+
 /** Porción de la API de geolocalización que usamos; `navigator.geolocation` la cumple. */
 export interface GeolocationLike {
   watchPosition(
-    onPosition: (p: { coords: { latitude: number; longitude: number } }) => void,
+    onPosition: (p: PositionLike) => void,
     onError: (e: { code: number }) => void,
     options?: PositionOptions,
   ): number;
   clearWatch(id: number): void;
+  getCurrentPosition(
+    onPosition: (p: PositionLike) => void,
+    onError: (e: { code: number }) => void,
+    options?: PositionOptions,
+  ): void;
 }
 
 export interface WakeLockSentinelLike {
@@ -41,9 +50,17 @@ export const LOCATION_LABELS: Record<LocationState, string> = {
 
 const REPORT_EVERY_MS = 5_000;
 const TICK_MS = 1_000;
-/** Más allá de esto la última posición ya no representa dónde está el taxi. */
-const MAX_FIX_AGE_MS = 30_000;
+/** Sin eventos por este tiempo se pide una posición: varios navegadores callan si no hay movimiento. */
+const QUERY_AFTER_MS = 10_000;
+const GPS_OPTIONS: PositionOptions = { enableHighAccuracy: true, maximumAge: 0, timeout: 20_000 };
+/**
+ * Tope para seguir reenviando la última posición sin eventos nuevos. Es largo a propósito: un GPS
+ * callado suele significar un taxi detenido, y marcar "sin señal" a un taxi que espera viajes
+ * daña más al despacho que una posición algo antigua. Las fallas reales se cortan antes (abajo).
+ */
+const MAX_FIX_AGE_MS = 5 * 60_000;
 const PERMISSION_DENIED = 1;
+const POSITION_UNAVAILABLE = 2;
 
 /**
  * Observa el GPS y reporta como máximo una vez cada 5 s. El temporizador también reenvía la
@@ -67,6 +84,8 @@ export function useDriverLocation({
     let latest: { lat: number; lng: number; at: number } | null = null;
     let lastSentAt = -Infinity;
     let denied = false;
+    let querying = false;
+    let lastFixAt = Date.now();
 
     function send(lat: number, lng: number, now: number): void {
       lastSentAt = now;
@@ -84,31 +103,51 @@ export function useDriverLocation({
       }
     }
 
-    function start(): number {
-      return (geolocation as GeolocationLike).watchPosition(
-        (p) => {
-          denied = false;
-          const now = Date.now();
-          latest = { lat: p.coords.latitude, lng: p.coords.longitude, at: now };
-          setState((s) => (s === 'failing' ? s : 'active'));
-          if (now - lastSentAt >= REPORT_EVERY_MS) send(latest.lat, latest.lng, now);
-        },
-        (e) => {
-          // Los demás errores (sin señal, tiempo agotado) son transitorios: los cubre MAX_FIX_AGE_MS.
-          if (e.code !== PERMISSION_DENIED) return;
-          denied = true;
-          latest = null;
-          setState('denied');
-        },
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 20_000 },
-      );
+    function onPosition(p: PositionLike): void {
+      denied = false;
+      const now = Date.now();
+      lastFixAt = now;
+      latest = { lat: p.coords.latitude, lng: p.coords.longitude, at: now };
+      setState((s) => (s === 'failing' ? s : 'active'));
+      if (now - lastSentAt >= REPORT_EVERY_MS) send(latest.lat, latest.lng, now);
     }
 
+    function onError(e: { code: number }): void {
+      // Tiempo agotado no cuenta como falla: también ocurre con el taxi detenido.
+      if (e.code === PERMISSION_DENIED) {
+        denied = true;
+        latest = null;
+        setState('denied');
+      } else if (e.code === POSITION_UNAVAILABLE) {
+        latest = null;
+        setState('searching');
+      }
+    }
+
+    const gps = geolocation;
+    const start = () => gps.watchPosition(onPosition, onError, GPS_OPTIONS);
     let watchId = start();
 
     const timer = setInterval(() => {
-      if (!latest) return;
+      // Oculta, la app no sabe dónde está el taxi: el panel debe verlo sin señal.
+      if (document.visibilityState !== 'visible') return;
       const now = Date.now();
+      if (!denied && !querying && now - lastFixAt >= QUERY_AFTER_MS) {
+        querying = true;
+        gps.getCurrentPosition(
+          (p) => {
+            querying = false;
+            if (active) onPosition(p);
+          },
+          (e) => {
+            querying = false;
+            lastFixAt = Date.now(); // reintenta dentro de QUERY_AFTER_MS, no en cada tick
+            if (active) onError(e);
+          },
+          GPS_OPTIONS,
+        );
+      }
+      if (!latest) return;
       if (now - latest.at > MAX_FIX_AGE_MS) {
         latest = null;
         setState('searching');

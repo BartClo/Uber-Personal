@@ -20,6 +20,7 @@ function fakeGeo() {
       return 1;
     }),
     clearWatch: vi.fn(),
+    getCurrentPosition: vi.fn<GeolocationLike['getCurrentPosition']>(),
   };
   return {
     geo,
@@ -40,6 +41,7 @@ function setVisibility(state: DocumentVisibilityState) {
 }
 
 beforeEach(() => {
+  setVisibility('visible');
   vi.useFakeTimers();
   vi.setSystemTime(new Date('2026-11-03T10:00:00.000Z'));
 });
@@ -96,14 +98,106 @@ describe('useDriverLocation', () => {
     expect(report).toHaveBeenCalledTimes(3);
   });
 
-  it('sin posiciones nuevas por 30 s deja de reportar y vuelve a buscar', async () => {
+  it('estacionado sin eventos del GPS: pide una posición y sigue activo y reportando', async () => {
+    const { geo, fix } = fakeGeo();
+    geo.getCurrentPosition.mockImplementation((ok) =>
+      ok({ coords: { latitude: 5, longitude: 5 } }),
+    );
+    const report = ok();
+    const { result } = renderHook(() =>
+      useDriverLocation({ geolocation: geo, report, enabled: true }),
+    );
+    fix(1, 1);
+    await act(() => vi.advanceTimersByTimeAsync(120_000));
+    expect(geo.getCurrentPosition).toHaveBeenCalled();
+    expect(result.current).toBe('active');
+    expect(report).toHaveBeenLastCalledWith(5, 5);
+    expect(report.mock.calls.length).toBeGreaterThan(20);
+  });
+
+  it('tras perder la señal se recupera cuando una consulta vuelve a dar posición', async () => {
     const { geo, fix } = fakeGeo();
     const report = ok();
     const { result } = renderHook(() =>
       useDriverLocation({ geolocation: geo, report, enabled: true }),
     );
     fix(1, 1);
-    await act(() => vi.advanceTimersByTimeAsync(31_000));
+    geo.getCurrentPosition.mockImplementation((_ok, err) => err({ code: 2 }));
+    await act(() => vi.advanceTimersByTimeAsync(40_000));
+    expect(result.current).toBe('searching');
+    expect(geo.getCurrentPosition.mock.calls.length).toBeGreaterThan(1);
+    geo.getCurrentPosition.mockImplementation((ok) =>
+      ok({ coords: { latitude: 7, longitude: 7 } }),
+    );
+    await act(() => vi.advanceTimersByTimeAsync(11_000));
+    expect(result.current).toBe('active');
+    expect(report).toHaveBeenLastCalledWith(7, 7);
+  });
+
+  it('una consulta denegada informa el permiso', async () => {
+    const { geo, fix } = fakeGeo();
+    geo.getCurrentPosition.mockImplementation((_ok, err) => err({ code: 1 }));
+    const report = ok();
+    const { result } = renderHook(() =>
+      useDriverLocation({ geolocation: geo, report, enabled: true }),
+    );
+    fix(1, 1);
+    await act(() => vi.advanceTimersByTimeAsync(11_000));
+    expect(result.current).toBe('denied');
+  });
+
+  it('GPS callado (solo tiempos agotados): sigue reportando, es un taxi detenido', async () => {
+    const { geo, fix } = fakeGeo();
+    geo.getCurrentPosition.mockImplementation((_ok, err) => err({ code: 3 }));
+    const report = ok();
+    const { result } = renderHook(() =>
+      useDriverLocation({ geolocation: geo, report, enabled: true }),
+    );
+    fix(1, 1);
+    await act(() => vi.advanceTimersByTimeAsync(60_000));
+    expect(result.current).toBe('active');
+    report.mockClear();
+    await act(() => vi.advanceTimersByTimeAsync(10_000));
+    expect(report).toHaveBeenCalledWith(1, 1);
+  });
+
+  it('señal no disponible: deja de reportar de inmediato', async () => {
+    const { geo, fix, fail } = fakeGeo();
+    const report = ok();
+    const { result } = renderHook(() =>
+      useDriverLocation({ geolocation: geo, report, enabled: true }),
+    );
+    fix(1, 1);
+    fail(2);
+    expect(result.current).toBe('searching');
+    report.mockClear();
+    await act(() => vi.advanceTimersByTimeAsync(10_000));
+    expect(report).not.toHaveBeenCalled();
+  });
+
+  it('con la app oculta no reenvía la última posición', async () => {
+    const { geo, fix } = fakeGeo();
+    const report = ok();
+    renderHook(() => useDriverLocation({ geolocation: geo, report, enabled: true }));
+    fix(1, 1);
+    report.mockClear();
+    act(() => setVisibility('hidden'));
+    await act(() => vi.advanceTimersByTimeAsync(20_000));
+    expect(report).not.toHaveBeenCalled();
+    expect(geo.getCurrentPosition).not.toHaveBeenCalled();
+    act(() => setVisibility('visible'));
+    await act(() => vi.advanceTimersByTimeAsync(1_000));
+    expect(report).toHaveBeenCalled();
+  });
+
+  it('sin posiciones nuevas por 5 min deja de reportar y vuelve a buscar', async () => {
+    const { geo, fix } = fakeGeo();
+    const report = ok();
+    const { result } = renderHook(() =>
+      useDriverLocation({ geolocation: geo, report, enabled: true }),
+    );
+    fix(1, 1);
+    await act(() => vi.advanceTimersByTimeAsync(301_000));
     expect(result.current).toBe('searching');
     const calls = report.mock.calls.length;
     await act(() => vi.advanceTimersByTimeAsync(20_000));
