@@ -52,6 +52,21 @@ describe('AuthGate', () => {
     expect(signOut).toHaveBeenCalled();
   });
 
+  it("role='driver' deja pasar a un taxista", async () => {
+    const { client } = fakeClient(session('driver'));
+    render(<AuthGate client={client} role="driver"><p>App</p></AuthGate>);
+    expect(await screen.findByText('App')).toBeInTheDocument();
+  });
+
+  it.each(['admin', 'otro'])("role='driver' bloquea a una cuenta %s", async (role) => {
+    const { client } = fakeClient(session(role));
+    render(<AuthGate client={client} role="driver"><p>App</p></AuthGate>);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Esta cuenta no tiene acceso de taxista',
+    );
+    expect(screen.queryByText('App')).not.toBeInTheDocument();
+  });
+
   it('sin sesión muestra login; error con credenciales malas', async () => {
     const { client } = fakeClient(null);
     render(<AuthGate client={client}><p>Panel</p></AuthGate>);

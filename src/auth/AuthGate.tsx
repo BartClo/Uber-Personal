@@ -27,7 +27,22 @@ export interface AuthClient {
 
 type State = { kind: 'loading' } | { kind: 'ready'; session: AuthSession | null };
 
-export function AuthGate({ client, children }: { client: AuthClient; children: ReactNode }) {
+export type AuthRole = 'admin' | 'driver';
+
+const NO_ACCESS: Record<AuthRole, string> = {
+  admin: 'Esta cuenta no tiene acceso de administrador',
+  driver: 'Esta cuenta no tiene acceso de taxista',
+};
+
+export function AuthGate({
+  client,
+  role = 'admin',
+  children,
+}: {
+  client: AuthClient;
+  role?: AuthRole;
+  children: ReactNode;
+}) {
   const [state, setState] = useState<State>({ kind: 'loading' });
 
   useEffect(() => {
@@ -58,10 +73,10 @@ export function AuthGate({ client, children }: { client: AuthClient; children: R
   }
   const { session } = state;
   if (!session) return <LoginForm client={client} />;
-  if (session.user.app_metadata.role !== 'admin') {
+  if (session.user.app_metadata.role !== role) {
     return (
       <main className={styles.center}>
-        <p role="alert">Esta cuenta no tiene acceso de administrador</p>
+        <p role="alert">{NO_ACCESS[role]}</p>
         <button type="button" className={styles.button} onClick={() => void client.auth.signOut()}>
           Cerrar sesión
         </button>
