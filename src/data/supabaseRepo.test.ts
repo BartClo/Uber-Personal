@@ -101,6 +101,71 @@ async function check(p: PromiseLike<{ error: { message: string } | null }>): Pro
       expect(data?.status).toBe('pending');
     });
 
+    it('a non-admin (driver of the trip included) cannot cancel', async () => {
+      await cleanTables();
+      const D = '00000000-0000-4000-8000-0000000000b1';
+      const T = '00000000-0000-4000-8000-0000000000b2';
+      const email = `test-driver-${crypto.randomUUID()}@example.test`;
+      const password = `pw-${crypto.randomUUID()}`;
+      const { data: created, error } = await admin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        app_metadata: { role: 'driver' },
+      });
+      if (error) throw new Error(error.message);
+      await check(
+        admin.from('drivers').insert({
+          id: D, name: 'X', taxi_number: '99', phone: '1', status: 'busy', user_id: created.user.id,
+        }),
+      );
+      await check(
+        admin.from('trips').insert({
+          id: T, customer_name: 'C', customer_phone: '1', pickup_address: 'A', dropoff_address: 'B',
+          status: 'assigned', driver_id: D,
+        }),
+      );
+      const driverClient = createClient(url ?? '', anonKey, noSession);
+      await driverClient.auth.signInWithPassword({ email, password });
+      clients.push(driverClient);
+      for (const client of [driverClient, await signedInClient(null)]) {
+        expect(await createSupabaseRepo(client).cancelTrip(T)).toEqual({
+          ok: false,
+          error: 'trip_not_found',
+        });
+      }
+      const { data } = await admin.from('trips').select('status').eq('id', T).single();
+      expect(data?.status).toBe('assigned');
+    });
+
+    it('the anon role cannot execute cancel_trip', async () => {
+      const anon = createClient(url ?? '', anonKey, noSession);
+      const { error } = await anon.rpc('cancel_trip', { p_trip_id: ZERO_UUID });
+      expect(error).not.toBeNull();
+    });
+
+    it('cancelling frees the driver and the client sees it cancelled, without the driver', async () => {
+      await cleanTables();
+      const anon = createClient(url ?? '', anonKey, noSession);
+      const requested = await anon.rpc('request_trip', {
+        p_name: 'Luz', p_phone: '600 300 001', p_pickup: 'A', p_dropoff: 'B',
+      });
+      const { token } = requested.data as { token: string };
+      const D = '00000000-0000-4000-8000-0000000000b3';
+      await check(
+        admin.from('drivers').insert({ id: D, name: 'X Y', taxi_number: '98', phone: '1', status: 'free' }),
+      );
+      const { data: row } = await admin.from('trips').select('id').eq('customer_name', 'Luz').single();
+      const tripId = (row as { id: string }).id;
+      const repo = createSupabaseRepo(adminClient);
+      expect((await repo.assignTrip(tripId, D)).ok).toBe(true);
+      expect((await repo.cancelTrip(tripId)).ok).toBe(true);
+      const status = await anon.rpc('get_trip_status', { p_token: token });
+      expect((status.data as { status: string }).status).toBe('cancelled');
+      expect(status.data).not.toHaveProperty('taxi_number');
+      expect((await repo.listDrivers()).find((d) => d.id === D)?.status).toBe('free');
+    });
+
     it('the anon role cannot execute assign_trip', async () => {
       const anon = createClient(url ?? '', anonKey, noSession);
       const { error } = await anon.rpc('assign_trip', { p_trip_id: ZERO_UUID, p_driver_id: ZERO_UUID });

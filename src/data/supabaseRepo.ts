@@ -3,6 +3,8 @@ import type { Driver, Trip } from "../domain/types";
 import type {
   AssignError,
   AssignResult,
+  CancelError,
+  CancelResult,
   ConnectionState,
   FleetRepo,
   NewTripInput,
@@ -18,6 +20,9 @@ import {
 
 type RpcResponse =
   { ok: true; trip: TripRow } | { ok: false; error: AssignError };
+
+type CancelResponse =
+  { ok: true; trip: TripRow } | { ok: false; error: CancelError };
 
 /**
  * Repo sobre Supabase. Usa UN canal realtime por instancia, compartido por todos
@@ -171,6 +176,18 @@ export function createSupabaseRepo(client: SupabaseClient): FleetRepo {
       });
       if (error) throw new Error(error.message);
       const res = data as RpcResponse;
+      if (!res.ok) return { ok: false, error: res.error };
+      refreshTrips();
+      refreshDrivers();
+      return { ok: true, trip: rowToTrip(res.trip) };
+    },
+
+    async cancelTrip(tripId: string): Promise<CancelResult> {
+      const { data, error } = await client.rpc("cancel_trip", {
+        p_trip_id: tripId,
+      });
+      if (error) throw new Error(error.message);
+      const res = data as CancelResponse;
       if (!res.ok) return { ok: false, error: res.error };
       refreshTrips();
       refreshDrivers();

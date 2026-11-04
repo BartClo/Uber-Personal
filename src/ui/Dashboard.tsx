@@ -135,6 +135,7 @@ export function Dashboard({ repo }: { repo: FleetRepo }) {
               drivers={drivers}
               now={now}
               onAssignClick={(t) => setSelectedTripId(t.id)}
+              onCancel={(tripId) => repo.cancelTrip(tripId)}
             />
           </div>
         </div>

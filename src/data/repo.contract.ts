@@ -119,6 +119,50 @@ export function runRepoContract(makeRepo: () => Promise<SeedableRepo>): void {
       expect(failed).toEqual([{ ok: false, error: 'already_assigned' }]);
     });
 
+    it('cancelTrip cancels a pending trip without touching drivers', async () => {
+      const repo = await makeRepo();
+      await repo.seed({ drivers: [driver(D1, 'free')], trips: [trip(T1, 'pending')] });
+      const res = await repo.cancelTrip(T1);
+      expect(res.ok && res.trip.status).toBe('cancelled');
+      expect((await repo.listTrips())[0]?.status).toBe('cancelled');
+      expect((await repo.listDrivers())[0]?.status).toBe('free');
+    });
+
+    it.each(['assigned', 'en_route', 'on_board'] as const)(
+      'cancelTrip on %s frees the busy driver and keeps the link to the trip',
+      async (status) => {
+        const repo = await makeRepo();
+        await repo.seed({ drivers: [driver(D1, 'busy')], trips: [trip(T1, status, D1)] });
+        const res = await repo.cancelTrip(T1);
+        expect(res.ok && res.trip.status).toBe('cancelled');
+        expect(res.ok && res.trip.driverId).toBe(D1);
+        expect((await repo.listDrivers())[0]?.status).toBe('free');
+      },
+    );
+
+    it('cancelTrip leaves a driver who is not busy as they are', async () => {
+      const repo = await makeRepo();
+      await repo.seed({ drivers: [driver(D1, 'offline')], trips: [trip(T1, 'assigned', D1)] });
+      expect((await repo.cancelTrip(T1)).ok).toBe(true);
+      expect((await repo.listDrivers())[0]?.status).toBe('offline');
+    });
+
+    it.each(['completed', 'cancelled'] as const)(
+      'cancelTrip returns not_cancellable for a %s trip',
+      async (status) => {
+        const repo = await makeRepo();
+        await repo.seed({ drivers: [driver(D1, 'free')], trips: [trip(T1, status, D1)] });
+        expect(await repo.cancelTrip(T1)).toEqual({ ok: false, error: 'not_cancellable' });
+        expect((await repo.listTrips())[0]?.status).toBe(status);
+        expect((await repo.listDrivers())[0]?.status).toBe('free');
+      },
+    );
+
+    it('cancelTrip returns trip_not_found for an unknown id', async () => {
+      const repo = await makeRepo();
+      expect(await repo.cancelTrip(UNKNOWN)).toEqual({ ok: false, error: 'trip_not_found' });
+    });
+
     it('subscribeTrips calls back after createTrip; unsubscribe stops callbacks', async () => {
       const repo = await makeRepo();
       const cb = vi.fn<(t: Trip[]) => void>();

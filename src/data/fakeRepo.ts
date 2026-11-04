@@ -1,6 +1,7 @@
 import type { Driver, Trip } from '../domain/types';
 import type {
   AssignResult,
+  CancelResult,
   ConnectionState,
   NewTripInput,
   SeedableRepo,
@@ -78,6 +79,20 @@ export class FakeRepo implements SeedableRepo {
     trip.driverId = driver.id;
     trip.assignedAt = new Date().toISOString();
     driver.status = 'busy';
+    this.emitDrivers();
+    this.emitTrips();
+    return Promise.resolve({ ok: true, trip: { ...trip } });
+  }
+
+  cancelTrip(tripId: string): Promise<CancelResult> {
+    const trip = this.trips.find((t) => t.id === tripId);
+    if (!trip) return Promise.resolve({ ok: false, error: 'trip_not_found' });
+    if (trip.status === 'completed' || trip.status === 'cancelled') {
+      return Promise.resolve({ ok: false, error: 'not_cancellable' });
+    }
+    const driver = this.drivers.find((d) => d.id === trip.driverId);
+    if (driver?.status === 'busy') driver.status = 'free';
+    trip.status = 'cancelled';
     this.emitDrivers();
     this.emitTrips();
     return Promise.resolve({ ok: true, trip: { ...trip } });

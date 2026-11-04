@@ -80,6 +80,31 @@ describe('Dashboard', () => {
     expect(screen.getByText('2 en viaje')).toBeInTheDocument();
   });
 
+  it('cancelar un pedido lo saca de la cola', async () => {
+    const repo = setup();
+    await screen.findByText('Carla Díaz');
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar el pedido de Carla Díaz' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Sí, cancelar' }));
+    expect(await screen.findByText('No hay pedidos en espera')).toBeInTheDocument();
+    expect(screen.queryByText('Carla Díaz')).not.toBeInTheDocument();
+    expect((await repo.listTrips())[0]?.status).toBe('cancelled');
+  });
+
+  it('cancelar un viaje en curso libera al taxista', async () => {
+    setup();
+    await screen.findByText('Carla Díaz');
+    await userEvent.click(screen.getByRole('button', { name: /Asignar a Carla Díaz/ }));
+    await userEvent.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Asignar a Ana Pérez' }),
+    );
+    expect(screen.getByText('2 en viaje')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Cancelar el pedido de Carla Díaz' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Sí, cancelar' }));
+    expect(await screen.findByText('Ningún viaje en curso')).toBeInTheDocument();
+    expect(screen.getByText('1 en viaje')).toBeInTheDocument();
+    expect(screen.getByText('1 libres')).toBeInTheDocument();
+  });
+
   it('muestra y oculta "Reconectando…" según la conexión', async () => {
     const repo = setup();
     await screen.findByText('Ana Pérez');

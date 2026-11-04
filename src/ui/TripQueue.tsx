@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
+import type { CancelError, CancelResult } from '@/data/repo';
 import { formatLastSeen } from '@/domain/freshness';
 import { tripSourceLabel, tripStatusLabel } from '@/domain/labels';
 import type { Driver, Trip } from '@/domain/types';
@@ -9,6 +11,97 @@ import styles from './TripQueue.module.css';
 const ACTIVE = ['assigned', 'en_route', 'on_board'];
 /** A partir de aquí el pedido se destaca en la cola: lleva demasiado esperando. */
 const URGENT_AFTER_MS = 5 * 60_000;
+
+const CANCEL_ERRORS: Record<CancelError, string> = {
+  trip_not_found: 'Este pedido ya no existe',
+  not_cancellable: 'Este pedido ya no se puede cancelar',
+};
+const CANCEL_NETWORK_ERROR = 'No se pudo cancelar. Intenta de nuevo.';
+
+/** Cancelar es irreversible y el cliente lo ve: siempre pide confirmación en la misma fila. */
+function CancelControl({
+  trip,
+  onCancel,
+}: {
+  trip: Trip;
+  onCancel: (tripId: string) => Promise<CancelResult>;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const openRef = useRef<HTMLButtonElement>(null);
+  const keepRef = useRef<HTMLButtonElement>(null);
+  const wasConfirming = useRef(false);
+
+  // El botón pulsado desaparece al confirmar o descartar: el foco no debe perderse con él.
+  useEffect(() => {
+    if (confirming) keepRef.current?.focus();
+    else if (wasConfirming.current) openRef.current?.focus();
+    wasConfirming.current = confirming;
+  }, [confirming]);
+
+  async function confirm() {
+    setPending(true);
+    setError(null);
+    try {
+      const result = await onCancel(trip.id);
+      if (!result.ok) setError(CANCEL_ERRORS[result.error]);
+    } catch {
+      setError(CANCEL_NETWORK_ERROR);
+    }
+    setPending(false);
+    setConfirming(false);
+  }
+
+  return (
+    <div className={styles.cancel}>
+      {error && (
+        <p role="alert" className={styles.cancelError}>
+          {error}
+        </p>
+      )}
+      {confirming ? (
+        <div
+          role="group"
+          aria-label="Confirmar cancelación"
+          className={styles.cancelConfirm}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape' && !pending) setConfirming(false);
+          }}
+        >
+          <span>¿Cancelar este pedido?</span>
+          <button
+            type="button"
+            className={styles.cancelYes}
+            disabled={pending}
+            onClick={() => void confirm()}
+          >
+            Sí, cancelar
+          </button>
+          <button
+            ref={keepRef}
+            type="button"
+            className={styles.cancelButton}
+            disabled={pending}
+            onClick={() => setConfirming(false)}
+          >
+            No, mantener
+          </button>
+        </div>
+      ) : (
+        <button
+          ref={openRef}
+          type="button"
+          className={styles.cancelButton}
+          aria-label={`Cancelar el pedido de ${trip.customerName}`}
+          onClick={() => setConfirming(true)}
+        >
+          Cancelar
+        </button>
+      )}
+    </div>
+  );
+}
 
 function WazeLink({ trip }: { trip: Trip }) {
   return (
@@ -29,11 +122,13 @@ export function TripQueue({
   drivers,
   now,
   onAssignClick,
+  onCancel,
 }: {
   trips: Trip[];
   drivers: Driver[];
   now: Date;
   onAssignClick: (trip: Trip) => void;
+  onCancel: (tripId: string) => Promise<CancelResult>;
 }) {
   const pending = trips
     .filter((t) => t.status === 'pending')
@@ -90,6 +185,7 @@ export function TripQueue({
                   Asignar
                 </button>
               </div>
+              <CancelControl trip={t} onCancel={onCancel} />
             </li>
           );
         })}
@@ -112,6 +208,7 @@ export function TripQueue({
                 <span className={styles.state}>{tripStatusLabel(t.status)}</span>
                 <WazeLink trip={t} />
               </div>
+              <CancelControl trip={t} onCancel={onCancel} />
             </li>
           );
         })}
