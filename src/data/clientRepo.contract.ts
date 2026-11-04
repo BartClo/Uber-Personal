@@ -37,6 +37,30 @@ export function runClientRepoContract(makeRepo: () => Promise<ClientRepo>): void
       });
     });
 
+    it('acepta coordenadas de origen válidas', async () => {
+      const repo = await makeRepo();
+      const r = await repo.requestTrip({
+        ...valid(`556 ${Math.floor(Math.random() * 9000 + 1000)}`),
+        pickupLat: -33.41,
+        pickupLng: -70.57,
+      });
+      expect(r.ok).toBe(true);
+    });
+
+    it.each([
+      ['solo latitud', -33.41, null],
+      ['solo longitud', null, -70.57],
+      ['latitud fuera de rango', 91, -70.57],
+      ['longitud fuera de rango', -33.41, -181],
+      ['NaN', Number.NaN, -70.57],
+    ])('rechaza coordenadas inválidas: %s', async (_n, lat, lng) => {
+      const repo = await makeRepo();
+      expect(await repo.requestTrip({ ...valid('555 0102'), pickupLat: lat, pickupLng: lng })).toEqual({
+        ok: false,
+        error: 'invalid_input',
+      });
+    });
+
     it.each([
       ['control', 'Ana\u0007B'],
       ['zero-width', 'Ana\u200bB'],

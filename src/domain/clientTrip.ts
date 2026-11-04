@@ -7,8 +7,19 @@ export interface ClientRequestInput {
   dropoff: string;
   name: string;
   phone: string;
+  /** Coordenadas del origen elegidas en el autocompletado; ambas o ninguna. */
+  pickupLat?: number | null;
+  pickupLng?: number | null;
 }
-export type ClientRequestErrors = Partial<Record<keyof ClientRequestInput, string>>;
+export type ClientRequestErrors = Partial<
+  Record<'pickup' | 'dropoff' | 'name' | 'phone', string>
+>;
+
+/** Mismo criterio que request_trip en SQL: ambas o ninguna, y dentro de rango. */
+export function validCoordinates(lat: number | null | undefined, lng: number | null | undefined): boolean {
+  if (lat == null || lng == null) return lat == null && lng == null;
+  return Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
+}
 export type ClientValidation =
   | { ok: true; value: ClientRequestInput }
   | { ok: false; errors: ClientRequestErrors };
@@ -30,6 +41,8 @@ export function validateClientRequest(input: ClientRequestInput): ClientValidati
     dropoff: input.dropoff.trim(),
     name: input.name.trim(),
     phone: input.phone.trim(),
+    pickupLat: input.pickupLat ?? null,
+    pickupLng: input.pickupLng ?? null,
   };
   const errors: ClientRequestErrors = {};
   if (!value.pickup) errors.pickup = 'Falta la dirección de recogida';

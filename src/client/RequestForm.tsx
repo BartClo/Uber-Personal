@@ -5,27 +5,31 @@ import {
   validateClientRequest,
   CLIENT_LIMITS,
   type ClientRequestErrors,
-  type ClientRequestInput,
 } from '@/domain/clientTrip';
 import type { ClientRepo } from '@/data/clientRepo';
+import type { Geocoder } from '@/data/geocoder';
+import { AddressField, type Coords } from '@/ui/AddressField';
 import styles from './Client.module.css';
 
 interface Props {
   repo: ClientRepo;
+  geocoder: Geocoder;
   onSuccess: (token: string) => void;
 }
 
-const EMPTY: ClientRequestInput = { pickup: '', dropoff: '', name: '', phone: '' };
+type TextKey = 'pickup' | 'dropoff' | 'name' | 'phone';
+const EMPTY: Record<TextKey, string> = { pickup: '', dropoff: '', name: '', phone: '' };
 
-export function RequestForm({ repo, onSuccess }: Props) {
+export function RequestForm({ repo, geocoder, onSuccess }: Props) {
   const [values, setValues] = useState(EMPTY);
+  const [pickupCoords, setPickupCoords] = useState<Coords | null>(null);
   const [errors, setErrors] = useState<ClientRequestErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const inFlight = useRef(false);
 
-  const set = (k: keyof ClientRequestInput) => (e: { target: { value: string } }) => {
-    setValues((v) => ({ ...v, [k]: e.target.value }));
+  const setText = (k: TextKey, text: string) => {
+    setValues((v) => ({ ...v, [k]: text }));
     setErrors((prev) => {
       const next = { ...prev };
       delete next[k];
@@ -33,11 +37,17 @@ export function RequestForm({ repo, onSuccess }: Props) {
     });
   };
 
+  const set = (k: TextKey) => (e: { target: { value: string } }) => setText(k, e.target.value);
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (inFlight.current) return;
     setFormError(null);
-    const v = validateClientRequest(values);
+    const v = validateClientRequest({
+      ...values,
+      pickupLat: pickupCoords?.lat ?? null,
+      pickupLng: pickupCoords?.lng ?? null,
+    });
     if (!v.ok) {
       setErrors(v.errors);
       return;
@@ -64,7 +74,7 @@ export function RequestForm({ repo, onSuccess }: Props) {
   }
 
   const field = (
-    k: keyof ClientRequestInput,
+    k: TextKey,
     label: string,
     max: number,
     extra: { type?: string; autoComplete?: string; inputMode?: 'tel' } = {},
@@ -101,10 +111,31 @@ export function RequestForm({ repo, onSuccess }: Props) {
       <h2 className={styles.title}>Pide tu taxi</h2>
       <p className={styles.lead}>Un operador de la central asignará tu taxi.</p>
       <form className={styles.form} onSubmit={submit} noValidate>
-        {field('pickup', 'Dónde te recogemos', CLIENT_LIMITS.address, {
-          autoComplete: 'street-address',
-        })}
-        {field('dropoff', 'A dónde vas', CLIENT_LIMITS.address)}
+        <AddressField
+          id="field-pickup"
+          label="Dónde te recogemos"
+          className={styles.field}
+          value={values.pickup}
+          onChange={(text, coords) => {
+            setText('pickup', text);
+            setPickupCoords(coords);
+          }}
+          geocoder={geocoder}
+          error={errors.pickup}
+          maxLength={CLIENT_LIMITS.address}
+        />
+        {/* El destino no guarda coordenadas: sirve el autocompletado, pero solo el texto viaja. */}
+        <AddressField
+          id="field-dropoff"
+          label="A dónde vas"
+          className={styles.field}
+          value={values.dropoff}
+          onChange={(text) => setText('dropoff', text)}
+          geocoder={geocoder}
+          error={errors.dropoff}
+          maxLength={CLIENT_LIMITS.address}
+          showHint={false}
+        />
         {field('name', 'Tu nombre', CLIENT_LIMITS.name, { autoComplete: 'name' })}
         {field('phone', 'Teléfono', CLIENT_LIMITS.phone, {
           type: 'tel',

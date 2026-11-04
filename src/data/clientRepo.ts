@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { phoneDigits, validateClientRequest, type ClientRequestInput } from '../domain/clientTrip';
+import { phoneDigits, validCoordinates, validateClientRequest, type ClientRequestInput } from '../domain/clientTrip';
 import type { TripStatus } from '../domain/types';
 
 export type RequestTripError = 'invalid_input' | 'too_many_requests';
@@ -33,7 +33,9 @@ export class FakeClientRepo implements ClientRepo {
 
   async requestTrip(input: ClientRequestInput): Promise<RequestTripResult> {
     const v = validateClientRequest(input);
-    if (!v.ok) return { ok: false, error: 'invalid_input' };
+    if (!v.ok || !validCoordinates(v.value.pickupLat, v.value.pickupLng)) {
+      return { ok: false, error: 'invalid_input' };
+    }
     const active = [...this.trips.values()].filter(
       (t) => phoneDigits(t.phone) === phoneDigits(v.value.phone) && t.status !== 'completed' && t.status !== 'cancelled',
     ).length;
@@ -97,6 +99,8 @@ export function createSupabaseClientRepo(client: SupabaseClient): ClientRepo {
         p_phone: input.phone,
         p_pickup: input.pickup,
         p_dropoff: input.dropoff,
+        p_pickup_lat: input.pickupLat ?? null,
+        p_pickup_lng: input.pickupLng ?? null,
       });
       if (error) throw new Error(error.message);
       const r = data as { ok?: boolean; token?: string; error?: string } | null;

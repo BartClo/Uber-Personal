@@ -50,6 +50,35 @@ const ZERO_UUID = '00000000-0000-0000-0000-000000000000';
 
   runClientRepoContract(async () => createSupabaseClientRepo(anon));
 
+  describe('request_trip: coordenadas', () => {
+    const coordsOf = async (token: string) => {
+      const { data } = await admin
+        .from('trips')
+        .select('pickup_lat, pickup_lng')
+        .eq('id', await tripIdOf(token))
+        .single();
+      return data as { pickup_lat: number | null; pickup_lng: number | null };
+    };
+
+    it('guarda las coordenadas del origen y deja null si no hay', async () => {
+      const repo = createSupabaseClientRepo(anon);
+      const withPin = await repo.requestTrip({
+        pickup: 'A', dropoff: 'B', name: 'Eva', phone: '600 400 001', pickupLat: -33.41, pickupLng: -70.57,
+      });
+      const without = await repo.requestTrip({ pickup: 'A', dropoff: 'B', name: 'Eva', phone: '600 400 002' });
+      if (!withPin.ok || !without.ok) throw new Error('request failed');
+      expect(await coordsOf(withPin.token)).toEqual({ pickup_lat: -33.41, pickup_lng: -70.57 });
+      expect(await coordsOf(without.token)).toEqual({ pickup_lat: null, pickup_lng: null });
+    });
+
+    it('la firma antigua de 4 argumentos sigue funcionando sin coordenadas (RPC directo)', async () => {
+      const { data } = await anon.rpc('request_trip', {
+        p_name: 'Eva', p_phone: '600 400 003', p_pickup: 'A', p_dropoff: 'B',
+      });
+      expect((data as { ok: boolean }).ok).toBe(true);
+    });
+  });
+
   describe('get_trip_status: caducidad', () => {
     it.each(['completed', 'cancelled'])('%s: visible 11 h, not_found a las 13 h', async (status) => {
       const repo = createSupabaseClientRepo(anon);
