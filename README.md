@@ -12,7 +12,7 @@ Plan vigente: `docs/plans/2026-11-02-panel-admin-despacho.md`. Reglas para agent
 
 ## Estado de verificación
 
-Verificado contra Supabase local (Postgres real) el 2026-11-03: suite de integración (contrato, asignación concurrente, RLS), simulador y flujo en navegador por `/`: login, bloqueo de cuentas sin rol admin, marcadores en vivo, asignación y banner "Reconectando…" al detener y reiniciar Realtime. **No verificado:** despliegue en un proyecto Supabase remoto. Para repetir la verificación:
+Verificado contra Supabase local (Postgres real) el 2026-11-03: suite de integración (contrato, asignación concurrente, RLS), simulador y flujo en navegador por `/`: login, bloqueo de cuentas sin rol admin, marcadores en vivo, asignación y banner "Reconectando…" al detener y reiniciar Realtime. **No verificado:** despliegue en un proyecto Supabase remoto. La app del taxista se verificó el mismo día en navegador de escritorio con emulación móvil y GPS simulado; **falta probarla en un teléfono real**. Para repetir la verificación:
 
 ```bash
 npx supabase start
@@ -24,6 +24,24 @@ SUPABASE_URL=<API_URL> SUPABASE_SERVICE_ROLE_KEY=<SERVICE_ROLE_KEY> timeout 15 n
 # confirma que last_seen_at cambió para los taxis 01-07 (el 08 queda en null):
 curl -s "<API_URL>/rest/v1/drivers?select=taxi_number,lat,lng,last_seen_at" -H "apikey: <SERVICE_ROLE_KEY>" -H "Authorization: Bearer <SERVICE_ROLE_KEY>"
 unset SUPABASE_TEST_URL; npm run verify
+```
+
+## App del taxista (`/taxista`)
+
+Pantalla móvil donde el taxista ve su viaje, avanza sus estados y envía su ubicación. No existe la opción de rechazar un viaje.
+
+- **La ubicación solo se envía con la app abierta.** Es una app web: si se cierra o queda en segundo plano, el panel verá al taxi sin señal. La app lo avisa en pantalla y, donde el navegador lo permite, mantiene la pantalla encendida (Wake Lock).
+- **El GPS y Wake Lock requieren HTTPS o `localhost`.** Por `http://` a una IP de la red local (por ejemplo, abrir desde el teléfono `http://192.168.x.x:3000`) el navegador bloquea la ubicación: usa HTTPS para probar en un teléfono real.
+
+### Crear un taxista
+
+Crea el usuario de Auth con `app_metadata.role = 'driver'` y lo vincula a la fila del taxi con ese número; si no existe, la crea. Se niega si el taxi ya tiene otra cuenta vinculada. La contraseña se lee de una variable de entorno, nunca de los argumentos, para que no quede en el historial de comandos ni en la lista de procesos.
+
+```bash
+export SUPABASE_URL=<API_URL> SUPABASE_SERVICE_ROLE_KEY=<SERVICE_ROLE_KEY>
+read -rs DRIVER_PASSWORD && export DRIVER_PASSWORD
+npm run create-driver -- --email carlos@ejemplo.com --name "Carlos Rojas" --taxi 07 --phone "+56 9 5555 0100"
+unset DRIVER_PASSWORD
 ```
 
 ## Crear el primer usuario admin
