@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
+import type { Geocoder } from '@/data/geocoder';
 import type { NewTripInput } from '@/data/repo';
+import { AddressField, type Coords } from './AddressField';
 import styles from './NewTripForm.module.css';
 
 type Key = 'name' | 'phone' | 'from' | 'to';
@@ -13,8 +15,15 @@ const FIELDS: { key: Key; label: string; error: string; type?: string }[] = [
 ];
 const EMPTY: Record<Key, string> = { name: '', phone: '', from: '', to: '' };
 
-export function NewTripForm({ onSubmit }: { onSubmit: (input: NewTripInput) => Promise<void> }) {
+export function NewTripForm({
+  onSubmit,
+  geocoder,
+}: {
+  onSubmit: (input: NewTripInput) => Promise<void>;
+  geocoder: Geocoder;
+}) {
   const [values, setValues] = useState(EMPTY);
+  const [fromCoords, setFromCoords] = useState<Coords | null>(null);
   const [errors, setErrors] = useState<Partial<Record<Key, string>>>({});
   const [submitting, setSubmitting] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -39,11 +48,12 @@ export function NewTripForm({ onSubmit }: { onSubmit: (input: NewTripInput) => P
         customerName: v.name,
         customerPhone: v.phone,
         pickupAddress: v.from,
-        pickupLat: null,
-        pickupLng: null,
+        pickupLat: fromCoords?.lat ?? null,
+        pickupLng: fromCoords?.lng ?? null,
         dropoffAddress: v.to,
       });
       setValues(EMPTY);
+      setFromCoords(null);
     } catch {
       setFailed(true);
     } finally {
@@ -53,24 +63,50 @@ export function NewTripForm({ onSubmit }: { onSubmit: (input: NewTripInput) => P
 
   return (
     <form onSubmit={handleSubmit} noValidate className={styles.form} aria-label="Nuevo pedido">
-      {FIELDS.map((f) => (
-        <div key={f.key} className={`${styles.field} ${f.key === 'name' || f.key === 'phone' ? '' : styles.wide}`}>
-          <label htmlFor={`trip-${f.key}`}>{f.label}</label>
-          <input
-            id={`trip-${f.key}`}
-            type={f.type ?? 'text'}
-            value={values[f.key]}
-            onChange={(e) => setValues({ ...values, [f.key]: e.target.value })}
-            aria-invalid={errors[f.key] ? true : undefined}
-            aria-describedby={errors[f.key] ? `trip-${f.key}-error` : undefined}
-          />
-          {errors[f.key] && (
-            <span id={`trip-${f.key}-error`} className={styles.error}>
-              {errors[f.key]}
-            </span>
-          )}
-        </div>
-      ))}
+      {FIELDS.map((f) => {
+        const wide = f.key === 'from' || f.key === 'to';
+        const cls = `${styles.field} ${wide ? styles.wide : ''}`;
+        const setText = (text: string) => {
+          setValues((prev) => ({ ...prev, [f.key]: text }));
+        };
+        if (wide) {
+          return (
+            <AddressField
+              key={f.key}
+              id={`trip-${f.key}`}
+              label={f.label}
+              className={cls}
+              value={values[f.key]}
+              onChange={(text, coords) => {
+                setText(text);
+                // Solo el origen guarda coordenadas; el destino es texto.
+                if (f.key === 'from') setFromCoords(coords);
+              }}
+              geocoder={geocoder}
+              error={errors[f.key]}
+              showHint={f.key === 'from'}
+            />
+          );
+        }
+        return (
+          <div key={f.key} className={cls}>
+            <label htmlFor={`trip-${f.key}`}>{f.label}</label>
+            <input
+              id={`trip-${f.key}`}
+              type={f.type ?? 'text'}
+              value={values[f.key]}
+              onChange={(e) => setText(e.target.value)}
+              aria-invalid={errors[f.key] ? true : undefined}
+              aria-describedby={errors[f.key] ? `trip-${f.key}-error` : undefined}
+            />
+            {errors[f.key] && (
+              <span id={`trip-${f.key}-error`} className={styles.error}>
+                {errors[f.key]}
+              </span>
+            )}
+          </div>
+        );
+      })}
       {failed && (
         <p role="alert" className={`${styles.error} ${styles.formError}`}>
           No se pudo crear el pedido. Intenta de nuevo.

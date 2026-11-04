@@ -65,6 +65,15 @@ Los clientes piden taxi sin cuenta en `/pedir` y siguen su viaje en `/pedir/<tok
 - Prueba de integración: `src/data/clientRepo.supabase.test.ts` (se omite sin `SUPABASE_TEST_URL`).
 - **Antes de publicar:** el formulario público solo tiene un límite básico (máx. 3 viajes activos creados en las últimas 2 horas por teléfono, comparando solo los dígitos). **Pendiente:** CAPTCHA y rate limiting (por IP, en el borde o en una Edge Function) antes de exponerlo a Internet.
 
+## Autocompletado de direcciones
+
+El origen (y el destino) de `/pedir` y del formulario de pedido del panel sugieren direcciones mientras se escribe, con coordenadas. Se usa [Photon](https://photon.komoot.io) (datos de OpenStreetMap, sin clave). No se usa Nominatim porque su política prohíbe el autocompletado.
+
+- **Privacidad:** lo que se escribe en esos campos (a partir de 3 caracteres) se envía desde el navegador al servidor público de Photon, un tercero. No se envían nombre ni teléfono.
+- **Sin garantías:** el servidor público no tiene SLA y exige uso razonable (limitar consultas, sin cargas masivas). Si falla o no encuentra nada, el texto libre sigue siendo válido y el pedido se crea sin coordenadas ("Sin ubicación exacta").
+- **Bajo carga real:** hay que alojar Photon propio o sustituirlo por un proveedor con contrato; basta otra implementación de `Geocoder` (`src/data/geocoder.ts`).
+- Las coordenadas del origen se guardan en `pickup_lat`/`pickup_lng` (migración `0005_trip_coordinates.sql`); el destino solo guarda texto. Cualquier edición del texto tras elegir una sugerencia descarta las coordenadas.
+
 ## Antes de producción
 
 - **Desactiva el registro abierto** (`enable_signup = false`, Authentication > Providers) y **sube la longitud mínima de contraseña** (`minimum_password_length`, el valor local es 6). Las cuentas se crean con `npm run create-driver` o desde el panel de Supabase.

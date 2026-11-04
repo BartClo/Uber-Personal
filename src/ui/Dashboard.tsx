@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPhotonGeocoder, type Geocoder } from '@/data/geocoder';
 import type { ConnectionState, FleetRepo, NewTripInput } from '@/data/repo';
 import type { Driver, Trip } from '@/domain/types';
 import { AssignDialog } from './AssignDialog';
@@ -12,7 +13,8 @@ import { NewTripForm } from './NewTripForm';
 import { TripQueue } from './TripQueue';
 import styles from './Dashboard.module.css';
 
-export function Dashboard({ repo }: { repo: FleetRepo }) {
+export function Dashboard({ repo, geocoder }: { repo: FleetRepo; geocoder?: Geocoder }) {
+  const [defaultGeocoder] = useState(() => createPhotonGeocoder());
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [connection, setConnection] = useState<ConnectionState>('connected');
@@ -127,7 +129,7 @@ export function Dashboard({ repo }: { repo: FleetRepo }) {
             </button>
           </div>
           <div id="new-trip-panel" hidden={!formOpen} className={styles.formPanel}>
-            {formOpen && <NewTripForm onSubmit={createTrip} />}
+            {formOpen && <NewTripForm onSubmit={createTrip} geocoder={geocoder ?? defaultGeocoder} />}
           </div>
           <div className={styles.tripsScroll}>
             <TripQueue
