@@ -3,11 +3,26 @@
 import { formatLastSeen } from '@/domain/freshness';
 import { tripSourceLabel, tripStatusLabel } from '@/domain/labels';
 import type { Driver, Trip } from '@/domain/types';
+import { wazeUrl } from '@/domain/waze';
 import styles from './TripQueue.module.css';
 
 const ACTIVE = ['assigned', 'en_route', 'on_board'];
 /** A partir de aquí el pedido se destaca en la cola: lleva demasiado esperando. */
 const URGENT_AFTER_MS = 5 * 60_000;
+
+function WazeLink({ trip }: { trip: Trip }) {
+  return (
+    <a
+      className={styles.waze}
+      href={wazeUrl(trip)}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label={`Abrir en Waze el viaje de ${trip.customerName}`}
+    >
+      Waze
+    </a>
+  );
+}
 
 export function TripQueue({
   trips,
@@ -65,6 +80,7 @@ export function TripQueue({
                     </span>
                   )}
                 </div>
+                <WazeLink trip={t} />
                 <button
                   type="button"
                   className={styles.button}
@@ -92,7 +108,10 @@ export function TripQueue({
                 <strong>{t.customerName}</strong>
                 <span>{d ? `${d.name} · taxi ${d.taxiNumber}` : 'Taxista desconocido'}</span>
               </div>
-              <span className={styles.state}>{tripStatusLabel(t.status)}</span>
+              <div className={styles.activeActions}>
+                <span className={styles.state}>{tripStatusLabel(t.status)}</span>
+                <WazeLink trip={t} />
+              </div>
             </li>
           );
         })}

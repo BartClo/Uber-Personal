@@ -23,7 +23,7 @@
 .stop + .stop::before { border-radius: 1px; background: var(--trip); }
 
 .footer { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
-.tags { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+.tags { flex: 1; display: flex; flex-wrap: wrap; gap: 0.25rem; }
 .tag { padding: 0.05rem 0.4rem; border-radius: 4px; background: var(--canvas); color: var(--ink-2); font-size: 0.75rem; }
 .tagWarn { background: var(--trip-soft); color: #92400e; }
 .button {
@@ -38,3 +38,11 @@
 .activeInfo strong { font-size: 0.875rem; }
 .activeInfo span { color: var(--ink-2); }
 .state { flex: none; padding: 0.1rem 0.5rem; border-radius: 999px; background: var(--busy-soft); color: #1e3a8a; font-size: 0.75rem; font-weight: 600; }
+
+.activeActions { flex: none; display: flex; align-items: center; gap: 0.5rem; }
+.waze {
+  flex: none; display: inline-flex; align-items: center; min-height: var(--control); padding: 0 0.75rem;
+  border: 1px solid var(--line-strong); border-radius: var(--radius-sm); color: var(--ink);
+  font-weight: 600; text-decoration: none; transition: background-color 150ms ease;
+}
+.waze:hover { background: var(--subtle); }

@@ -55,4 +55,11 @@ describe('TripQueue', () => {
     render(<TripQueue trips={[mk({ status: 'assigned', driverId: 'nope' })]} drivers={[]} now={now} onAssignClick={() => {}} />);
     expect(screen.getByText('Taxista desconocido')).toBeInTheDocument();
   });
+  it('cada viaje tiene enlace a Waze', () => {
+    const t = { ...mk({ id: 'w', customerName: 'Wanda' }) };
+    render(<TripQueue trips={[t]} drivers={[]} now={now} onAssignClick={() => {}} />);
+    const link = screen.getByRole('link', { name: 'Abrir en Waze el viaje de Wanda' });
+    expect(link).toHaveAttribute('href', expect.stringContaining('https://www.waze.com/ul?'));
+    expect(link).toHaveAttribute('target', '_blank');
+  });
 });
