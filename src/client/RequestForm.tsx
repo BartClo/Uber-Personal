@@ -24,8 +24,14 @@ export function RequestForm({ repo, onSuccess }: Props) {
   const [sending, setSending] = useState(false);
   const inFlight = useRef(false);
 
-  const set = (k: keyof ClientRequestInput) => (e: { target: { value: string } }) =>
+  const set = (k: keyof ClientRequestInput) => (e: { target: { value: string } }) => {
     setValues((v) => ({ ...v, [k]: e.target.value }));
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next[k];
+      return next;
+    });
+  };
 
   async function submit(e: FormEvent) {
     e.preventDefault();

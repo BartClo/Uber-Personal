@@ -105,7 +105,11 @@ export function AssignDialog({ trip, drivers, now, onAssign, onClose }: Props) {
         <header className={styles.header}>
           <div>
             <h2 id="assign-title">Asignar a</h2>
-            <p>Más cerca primero</p>
+            <p>
+              {trip.pickupLat !== null && trip.pickupLng !== null
+                ? 'Más cerca primero'
+                : 'Sin ubicación: elige un taxista'}
+            </p>
             <p>
               <strong>{trip.customerName}</strong> · {trip.pickupAddress}
             </p>

@@ -28,6 +28,17 @@ describe('RequestForm', () => {
     expect(screen.getByLabelText('Teléfono')).toHaveAccessibleDescription('Falta tu teléfono');
   });
 
+  it('clears only the edited field error when the user types in it', async () => {
+    render(<RequestForm repo={repoWith(vi.fn())} onSuccess={vi.fn()} />);
+    const u = userEvent.setup();
+    await u.click(screen.getByRole('button', { name: 'Pedir taxi' }));
+    const name = screen.getByLabelText('Tu nombre');
+    await u.type(name, 'A');
+    expect(name).not.toHaveAttribute('aria-invalid');
+    expect(screen.queryByText('Falta tu nombre')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Teléfono')).toHaveAccessibleDescription('Falta tu teléfono');
+  });
+
   it('submits trimmed data and calls onSuccess with the token', async () => {
     const requestTrip = vi.fn().mockResolvedValue({ ok: true, token: 'tok' });
     const onSuccess = vi.fn();

@@ -54,11 +54,11 @@ const TICK_MS = 1_000;
 const QUERY_AFTER_MS = 10_000;
 const GPS_OPTIONS: PositionOptions = { enableHighAccuracy: true, maximumAge: 0, timeout: 20_000 };
 /**
- * Tope para seguir reenviando la última posición sin eventos nuevos. Es largo a propósito: un GPS
- * callado suele significar un taxi detenido, y marcar "sin señal" a un taxi que espera viajes
- * daña más al despacho que una posición algo antigua. Las fallas reales se cortan antes (abajo).
+ * Tope para seguir reenviando la última posición sin eventos nuevos. Cada reenvío refresca
+ * last_seen_at, así que más allá de esto el panel creería vigente una posición vieja. Da margen
+ * a un taxi detenido con el GPS callado; las fallas reales se cortan antes (abajo).
  */
-const MAX_FIX_AGE_MS = 5 * 60_000;
+const MAX_FIX_AGE_MS = 2 * 60_000;
 const PERMISSION_DENIED = 1;
 const POSITION_UNAVAILABLE = 2;
 

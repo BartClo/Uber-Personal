@@ -190,14 +190,19 @@ describe('useDriverLocation', () => {
     expect(report).toHaveBeenCalled();
   });
 
-  it('sin posiciones nuevas por 5 min deja de reportar y vuelve a buscar', async () => {
+  it('sin posiciones nuevas por 2 min deja de reportar y vuelve a buscar', async () => {
     const { geo, fix } = fakeGeo();
     const report = ok();
     const { result } = renderHook(() =>
       useDriverLocation({ geolocation: geo, report, enabled: true }),
     );
     fix(1, 1);
-    await act(() => vi.advanceTimersByTimeAsync(301_000));
+    await act(() => vi.advanceTimersByTimeAsync(119_000));
+    expect(result.current).toBe('active');
+    report.mockClear();
+    await act(() => vi.advanceTimersByTimeAsync(1_000));
+    expect(report).toHaveBeenCalled();
+    await act(() => vi.advanceTimersByTimeAsync(2_000));
     expect(result.current).toBe('searching');
     const calls = report.mock.calls.length;
     await act(() => vi.advanceTimersByTimeAsync(20_000));

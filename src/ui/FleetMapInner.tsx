@@ -19,6 +19,16 @@ export function driverMarkerClass(driver: Driver, now: Date): MarkerClass {
   return driver.status === 'busy' ? 'marker-busy' : 'marker-free';
 }
 
+/** L.divIcon inserta `html` sin escapar: todo dato debe pasar por aquí. */
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 const iconCache = new Map<string, L.DivIcon>();
 function cachedIcon(className: string, html: string, size: number): L.DivIcon {
   const key = `${className}|${html}|${size}`;
@@ -162,7 +172,7 @@ export function FleetMapInner({
                 `${driverMarkerClass(d, now)}${d.id === selectedDriverId ? ' marker-selected' : ''}${
                   pickup && !distanceById.has(d.id) ? ' marker-dim' : ''
                 }`,
-                d.taxiNumber,
+                escapeHtml(d.taxiNumber),
                 36,
               )}
               eventHandlers={{ click: () => onSelectDriver?.(d.id) }}

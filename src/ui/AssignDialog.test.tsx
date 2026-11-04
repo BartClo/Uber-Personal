@@ -69,6 +69,23 @@ describe('AssignDialog', () => {
     expect(dlg).toHaveTextContent('Av. Siempre Viva 742');
     expect(dlg.contains(document.activeElement)).toBe(true);
   });
+  it.each([
+    ['sin latitud', { pickupLat: null }],
+    ['sin longitud', { pickupLng: null }],
+  ])('pedido %s: no promete cercanía y pide elegir', (_name, patch) => {
+    render(
+      <AssignDialog
+        trip={{ ...trip, ...patch }}
+        drivers={[mk({})]}
+        now={now}
+        onAssign={okFn}
+        onClose={() => {}}
+      />,
+    );
+    const dlg = screen.getByRole('dialog', { name: 'Asignar a' });
+    expect(dlg).toHaveTextContent('Sin ubicación: elige un taxista');
+    expect(dlg).not.toHaveTextContent('Más cerca primero');
+  });
   it('Escape y Cerrar llaman onClose', async () => {
     const { onClose } = setup([mk({})]);
     await userEvent.keyboard('{Escape}');

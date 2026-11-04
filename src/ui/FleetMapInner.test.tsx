@@ -73,6 +73,18 @@ describe('FleetMapInner', () => {
     expect(screen.getByText('22')).toHaveClass('marker-stale');
     expect(screen.getByText('11')).toHaveClass('marker-free');
   });
+  it('escapa el número de taxi en el HTML del marcador', () => {
+    render(
+      <FleetMapInner
+        drivers={[mk({ id: 'x', taxiNumber: `<img src=x onerror="a('b')">&` })]}
+        trips={[]}
+        now={now}
+      />,
+    );
+    expect(screen.getByTestId('marker').textContent).toBe(
+      '&lt;img src=x onerror=&quot;a(&#39;b&#39;)&quot;&gt;&amp;',
+    );
+  });
   it('pedido pendiente con coords usa marker-trip; leyenda y atribución', () => {
     render(<FleetMapInner drivers={[]} trips={[trip({}), trip({ id: 'u', pickupLat: null })]} now={now} />);
     expect(screen.getAllByTestId('marker')).toHaveLength(1);
