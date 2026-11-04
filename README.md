@@ -12,7 +12,7 @@ Plan vigente: `docs/plans/2026-11-02-panel-admin-despacho.md`. Reglas para agent
 
 ## Estado de verificación
 
-La integración con Supabase (RLS, RPC de asignación y realtime) y el simulador **nunca se han ejecutado contra Postgres real**, porque Docker no estaba disponible. Los tests unitarios, `npm run verify` y `npm run build` sí pasan. Para verificar la parte pendiente:
+Verificado contra Supabase local (Postgres real) el 2026-11-03: suite de integración (contrato, asignación concurrente, RLS), simulador y flujo en navegador por `/`: login, bloqueo de cuentas sin rol admin, marcadores en vivo, asignación y banner "Reconectando…" al detener y reiniciar Realtime. **No verificado:** despliegue en un proyecto Supabase remoto. Para repetir la verificación:
 
 ```bash
 npx supabase start
