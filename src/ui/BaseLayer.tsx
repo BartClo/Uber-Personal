@@ -17,14 +17,21 @@ function hasWebGL(): boolean {
   return document.createElement('canvas').getContext('webgl2') !== null;
 }
 
-function VectorLayer() {
+function isAlive(map: L.Map): boolean {
+  return map.getPane('mapPane') !== undefined;
+}
+
+export function VectorLayer() {
   const map = useMap();
   useEffect(() => {
+    // Al remontar, React puede entregar un mapa ya destruido (sin paneles); tocarlo lanza
+    // "reading '_leaflet_pos'". El MapContainer vivo vuelve a montar esta capa con su mapa.
+    if (!isAlive(map)) return;
     // El plugin añade la atribución del estilo (OpenFreeMap, OpenMapTiles, OpenStreetMap).
     const layer = L.maplibreGL({ style: STYLE_URL });
     layer.addTo(map);
     return () => {
-      map.removeLayer(layer);
+      if (isAlive(map)) map.removeLayer(layer);
     };
   }, [map]);
   return null;
