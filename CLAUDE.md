@@ -19,6 +19,7 @@ Next.js (App Router) + TypeScript estricto + Supabase + Leaflet. Plan vigente: `
 - `src/domain` es puro: sin React, sin Supabase, sin `Date.now()` (el tiempo entra como parámetro `now`).
 - Fechas en ISO 8601 UTC. Textos de UI en español. Accesibilidad WCAG 2.1 AA (labels, roles, el estado nunca solo por color).
 - Commits: Conventional Commits (`feat:`, `fix:`, `chore:`, `test:`).
+- Ningún commit lleva `Co-Authored-By` ni otra línea de coautor.
 
 ## Comandos
 
