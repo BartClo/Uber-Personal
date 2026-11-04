@@ -110,6 +110,7 @@ export function Dashboard({ repo }: { repo: FleetRepo }) {
             now={now}
             selectedDriverId={selectedDriverId}
             onSelectDriver={setSelectedDriverId}
+            focusTrip={selectedTrip ?? null}
           />
         </div>
         <div className={`${styles.pane} ${styles.trips}`}>

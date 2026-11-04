@@ -5,3 +5,4 @@ package-lock.json
 docs
 CLAUDE.md
 .claude
+public/maplibre-gl-worker.mjs

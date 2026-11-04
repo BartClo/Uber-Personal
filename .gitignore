@@ -44,3 +44,6 @@ next-env.d.ts
 .superpowers/
 
 !.env.example
+
+# generado desde node_modules
+/public/maplibre-gl-worker.mjs

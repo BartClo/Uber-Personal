@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { rankDrivers } from './rankDrivers';
+import { nearestCandidates, rankDrivers } from './rankDrivers';
 import type { Driver, Trip } from './types';
 
 const now = new Date('2026-11-02T12:00:00Z');
@@ -52,5 +52,31 @@ describe('rankDrivers', () => {
   it('distancia null queda al final del grupo', () => {
     const r = rankDrivers([mk({ id: 'n', lat: null, lng: null }), mk({ id: 'k' })], trip(), now);
     expect(r.map((x) => x.driver.id)).toEqual(['k', 'n']);
+  });
+});
+
+describe('nearestCandidates', () => {
+  const now = new Date('2026-11-02T12:00:00Z');
+  const fresh = '2026-11-02T11:59:50Z';
+  const base = { name: 'n', taxiNumber: '1', phone: '1', lastSeenAt: fresh, lat: -33.4, lng: -70.6 };
+  const pickup = {
+    id: 't', source: 'admin', customerName: 'c', customerPhone: '1', pickupAddress: 'x',
+    pickupLat: -33.4, pickupLng: -70.6, dropoffAddress: 'y', status: 'pending', driverId: null,
+    createdAt: fresh, assignedAt: null,
+  } as const;
+  it('solo libres con señal y distancia, máximo 3, el más cercano primero', () => {
+    const drivers = [
+      { ...base, id: 'lejos', status: 'free', lat: -33.5 },
+      { ...base, id: 'cerca', status: 'free', lat: -33.41 },
+      { ...base, id: 'medio', status: 'free', lat: -33.45 },
+      { ...base, id: 'otro', status: 'free', lat: -33.46 },
+      { ...base, id: 'ocupado', status: 'busy' },
+      { ...base, id: 'viejo', status: 'free', lastSeenAt: '2026-11-02T11:00:00Z' },
+      { ...base, id: 'sinpos', status: 'free', lat: null, lng: null },
+    ] as const;
+    expect(nearestCandidates([...drivers], pickup, now).map((c) => c.driver.id)).toEqual(['cerca', 'medio', 'otro']);
+  });
+  it('pedido sin coordenadas: ninguno', () => {
+    expect(nearestCandidates([{ ...base, id: 'a', status: 'free' }], { ...pickup, pickupLat: null, pickupLng: null }, now)).toEqual([]);
   });
 });

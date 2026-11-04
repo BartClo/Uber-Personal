@@ -14,6 +14,7 @@ const eslintConfig = defineConfig([
   },
   // Override default ignores of eslint-config-next.
   globalIgnores([
+    "public/maplibre-gl-worker.mjs",
     // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",

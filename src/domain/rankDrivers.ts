@@ -43,3 +43,15 @@ export function rankDrivers(drivers: Driver[], trip: Trip, now: Date): RankedDri
     assignable,
   }));
 }
+
+/** Mejores opciones para mostrar en el mapa: libres, con señal vigente y a distancia conocida. */
+export function nearestCandidates(
+  drivers: Driver[],
+  trip: Trip,
+  now: Date,
+  limit = 3,
+): RankedDriver[] {
+  return rankDrivers(drivers, trip, now)
+    .filter((r) => r.assignable && !r.stale && r.distanceKm !== null)
+    .slice(0, limit);
+}

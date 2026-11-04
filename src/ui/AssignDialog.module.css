@@ -24,3 +24,14 @@
 .secondary { background: var(--surface); color: var(--ink); border-color: var(--line-strong); }
 .secondary:hover:not(:disabled) { background: var(--subtle); }
 .error { margin: 0.75rem 1rem 0; padding: 0.5rem 0.625rem; border-radius: var(--radius-sm); background: var(--danger-soft); color: #7f1d1d; font-weight: 500; }
+
+/* Escritorio: panel sobre la columna de pedidos; el mapa queda visible y se puede mover. */
+@media (min-width: 1024px) {
+  .backdrop { display: block; padding: 0; background: transparent; pointer-events: none; }
+  .dialog {
+    position: fixed; top: 57px; right: 12px; bottom: 12px; width: 372px; max-height: none;
+    border: 1px solid var(--line); pointer-events: auto;
+  }
+  .list { flex: 1; }
+  .row { grid-template-columns: 2.25rem minmax(0, 1fr) auto; }
+}

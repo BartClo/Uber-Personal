@@ -7,12 +7,16 @@ import type { Driver, Trip } from '@/domain/types';
 
 vi.mock('react-leaflet', () => ({
   useMap: () => ({ fitBounds: () => {}, panTo: () => {} }),
+  Polyline: () => <div data-testid="line" />,
+  Tooltip: () => null,
   MapContainer: ({ children }: { children: ReactNode }) => <div data-testid="map">{children}</div>,
   TileLayer: ({ attribution }: { attribution: string }) => <p>{attribution}</p>,
   Marker: ({ icon }: { icon: { options: { className: string; html: string } } }) => (
     <div data-testid="marker" className={icon.options.className}>{icon.options.html}</div>
   ),
 }));
+
+vi.mock('./BaseLayer', () => ({ BaseLayer: () => <p>OpenStreetMap</p> }));
 
 import { FleetMapInner, driverMarkerClass } from './FleetMapInner';
 
@@ -25,6 +29,26 @@ const trip = (o: Partial<Trip>): Trip => ({
   id: 't', source: 'admin', customerName: 'c', customerPhone: '1', pickupAddress: 'x',
   pickupLat: -33.4, pickupLng: -70.6, dropoffAddress: 'y', status: 'pending', driverId: null,
   createdAt: '2026-11-02T11:00:00Z', assignedAt: null, ...o,
+});
+
+describe('FleetMapInner con pedido enfocado', () => {
+  const focus = trip({ id: 'f', pickupLat: -33.4, pickupLng: -70.6 });
+  const drivers = [
+    mk({ id: 'a', taxiNumber: '1', lat: -33.41, lng: -70.6 }),
+    mk({ id: 'b', taxiNumber: '2', status: 'busy', lat: -33.42, lng: -70.6 }),
+  ];
+  it('dibuja una línea solo a los candidatos y atenúa al resto', () => {
+    render(<FleetMapInner drivers={drivers} trips={[focus]} now={now} focusTrip={focus} />);
+    expect(screen.getAllByTestId('line')).toHaveLength(1);
+    expect(screen.getByText('2')).toHaveClass('marker-dim');
+    expect(screen.getByText('1')).not.toHaveClass('marker-dim');
+  });
+  it('un pedido sin coordenadas no dibuja líneas ni atenúa', () => {
+    const noPin = trip({ id: 'n', pickupLat: null, pickupLng: null });
+    render(<FleetMapInner drivers={drivers} trips={[noPin]} now={now} focusTrip={noPin} />);
+    expect(screen.queryByTestId('line')).not.toBeInTheDocument();
+    expect(screen.getByText('2')).not.toHaveClass('marker-dim');
+  });
 });
 
 describe('driverMarkerClass', () => {
