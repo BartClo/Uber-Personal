@@ -9,6 +9,8 @@ export default defineConfig({
     // Defaults made explicit: silences vitest perf hints (pool/isolate) without changing behavior.
     pool: "forks",
     isolate: true,
+    // Las suites de integración limpian las mismas tablas: en paralelo se pisarían.
+    fileParallelism: !process.env.SUPABASE_TEST_URL,
     setupFiles: ["./vitest.setup.ts"],
   },
 });
