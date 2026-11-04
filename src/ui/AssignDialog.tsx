@@ -126,23 +126,35 @@ export function AssignDialog({ trip, drivers, now, onAssign, onClose }: Props) {
           </p>
         )}
         <ul className={styles.list}>
-          {ranked.map(({ driver: d, distanceKm, stale, assignable }) => {
+          {ranked.map(({ driver: d, distanceKm, stale, assignable }, i) => {
             const label = `Asignar a ${d.name}`;
+            const offline = d.status === 'offline';
+            const tone = offline || stale ? 'off' : d.status;
+            const best = i === 0 && assignable && !stale && distanceKm !== null;
             return (
-              <li key={d.id} className={styles.row} data-stale={stale ? 'true' : undefined}>
+              <li
+                key={d.id}
+                className={styles.row}
+                data-tone={tone}
+                data-best={best ? 'true' : undefined}
+                data-stale={stale ? 'true' : undefined}
+              >
                 <strong className={styles.taxi}>{d.taxiNumber}</strong>
-                <span>{d.name}</span>
+                <span>
+                  <span className={styles.name}>{d.name}</span>
+                  {best && <span className={styles.best}>Más cerca</span>}
+                </span>
                 <button
                   type="button"
                   aria-label={label}
-                  className={styles.btn}
+                  className={`${styles.btn} ${styles.action}`}
                   disabled={!assignable || pending || locked}
                   onClick={() => (stale ? setConfirmId(d.id) : void assign(d.id))}
                 >
                   Asignar
                 </button>
                 <span className={styles.meta}>
-                  {stale ? 'Sin señal' : driverStatusLabel(d.status)} · {formatDistanceKm(distanceKm)}
+                  {offline || !stale ? driverStatusLabel(d.status) : 'Sin señal'} · {formatDistanceKm(distanceKm)}
                 </span>
                 {confirmId === d.id && stale && assignable && (
                   <div className={styles.confirm}>

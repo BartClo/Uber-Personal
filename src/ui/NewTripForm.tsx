@@ -53,9 +53,8 @@ export function NewTripForm({ onSubmit }: { onSubmit: (input: NewTripInput) => P
 
   return (
     <form onSubmit={handleSubmit} noValidate className={styles.form} aria-label="Nuevo pedido">
-      <h2 className={styles.title}>Nuevo pedido</h2>
       {FIELDS.map((f) => (
-        <div key={f.key} className={styles.field}>
+        <div key={f.key} className={`${styles.field} ${f.key === 'name' || f.key === 'phone' ? '' : styles.wide}`}>
           <label htmlFor={`trip-${f.key}`}>{f.label}</label>
           <input
             id={`trip-${f.key}`}
@@ -73,7 +72,7 @@ export function NewTripForm({ onSubmit }: { onSubmit: (input: NewTripInput) => P
         </div>
       ))}
       {failed && (
-        <p role="alert" className={styles.error}>
+        <p role="alert" className={`${styles.error} ${styles.formError}`}>
           No se pudo crear el pedido. Intenta de nuevo.
         </p>
       )}

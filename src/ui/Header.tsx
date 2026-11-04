@@ -25,9 +25,9 @@ export function Header({
     <header className={styles.header}>
       <h1 className={styles.title}>Despacho</h1>
       <ul className={styles.counters} aria-label="Resumen de la flota" aria-live="polite">
-        <li>{free} libres</li>
-        <li>{busy} en viaje</li>
-        <li>{stale} sin señal</li>
+        <li><span aria-hidden="true" className={`${styles.dot} ${styles.dotFree}`} />{free} libres</li>
+        <li><span aria-hidden="true" className={`${styles.dot} ${styles.dotBusy}`} />{busy} en viaje</li>
+        <li><span aria-hidden="true" className={`${styles.dot} ${styles.dotStale}`} />{stale} sin señal</li>
       </ul>
       {connection === 'connected' && (
         <span className={styles.live}>

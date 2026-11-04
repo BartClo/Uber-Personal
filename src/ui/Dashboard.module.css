@@ -1,131 +1,74 @@
-.shell {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
+.shell { display: flex; flex-direction: column; min-height: 100dvh; }
 
 .header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.75rem 1rem;
-  background: #111827;
-  color: #fff;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1.25rem;
+  padding: 0.625rem 1rem; background: var(--chrome); color: var(--chrome-ink);
 }
+.title { font-size: 1.0625rem; font-weight: 700; letter-spacing: -0.01em; color: #fff; }
+.counters { display: flex; flex-wrap: wrap; gap: 0.375rem; margin: 0; padding: 0; list-style: none; }
+.counters li {
+  display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.15rem 0.6rem;
+  border-radius: 999px; background: rgb(255 255 255 / 9%); font-size: 0.8125rem;
+  font-weight: 500; font-variant-numeric: tabular-nums;
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.dotFree { background: #4ade80; }
+.dotBusy { background: #60a5fa; }
+.dotStale { background: #94a3b8; }
 
-.title {
-  margin: 0;
-  font-size: 1.25rem;
-}
+.live { display: inline-flex; align-items: center; gap: 0.4rem; margin-left: auto; font-size: 0.8125rem; font-weight: 600; }
+.liveDot { width: 8px; height: 8px; border-radius: 50%; background: #4ade80; animation: pulse 2s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.45; } }
 
-.counters {
-  display: flex;
-  gap: 1rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.live {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  margin-left: auto;
-  font-weight: 600;
-}
-
-.liveDot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: #4ade80;
-}
-
-.banner {
-  margin: 0;
-  padding: 0.5rem 1rem;
-  background: #fef3c7;
-  color: #78350f;
-  font-weight: 600;
-}
-
-.bannerEmpty {
-  margin: 0;
-}
+.banner { padding: 0.4rem 1rem; background: var(--trip-soft); color: #78350f; font-weight: 600; }
+.bannerEmpty { height: 0; }
 
 .loadError {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 0.5rem 1rem;
-  background: #fee2e2;
-  color: #7f1d1d;
-}
-
-.loadError p {
-  margin: 0;
+  display: flex; align-items: center; gap: 1rem; padding: 0.5rem 1rem;
+  background: var(--danger-soft); color: #7f1d1d;
 }
 
 .button {
-  padding: 0.5rem 0.875rem;
-  border: 0;
-  border-radius: 6px;
-  background: #1d4ed8;
-  color: #fff;
-  font-weight: 600;
-  cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: var(--control); padding: 0 0.875rem; border: 0; border-radius: var(--radius-sm);
+  background: var(--primary); color: #fff; font-weight: 600; cursor: pointer;
+  transition: background-color 150ms ease;
 }
+.button:hover { background: var(--primary-hover); }
 
-.button:focus-visible {
-  outline: 3px solid #111827;
-  outline-offset: 2px;
-}
-
-/* Narrow: map on top, then queue, then drivers. */
+/* Angosto: mapa arriba, luego cola, luego taxistas. La página hace scroll. */
 .grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  grid-template-areas:
-    'map'
-    'trips'
-    'drivers';
-  gap: 1rem;
-  padding: 1rem;
-  flex: 1;
+  flex: 1; display: grid; gap: 0.75rem; padding: 0.75rem; grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: 'map' 'trips' 'drivers';
 }
-
-.drivers {
-  grid-area: drivers;
-  min-width: 0;
+.pane {
+  min-width: 0; display: flex; flex-direction: column; background: var(--surface);
+  border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow);
+  overflow: hidden;
 }
-
+.drivers { grid-area: drivers; }
+.trips { grid-area: trips; }
 .map {
-  grid-area: map;
-  height: 50vh;
-  min-height: 360px;
+  grid-area: map; height: 45vh; min-height: 320px; border-radius: var(--radius);
+  overflow: hidden; border: 1px solid var(--line); box-shadow: var(--shadow);
 }
+.map > * { height: 100%; }
 
-.map > * {
-  height: 100%;
+.tripsTop {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
+  padding: 0.625rem 0.875rem; border-bottom: 1px solid var(--line);
 }
+.tripsTop h2 { font-size: 0.9375rem; font-weight: 700; }
+.formPanel { background: var(--subtle); border-bottom: 1px solid var(--line); }
+.tripsScroll { min-height: 0; }
 
-.trips {
-  grid-area: trips;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  min-width: 0;
-}
-
-/* Desktop: taxistas | mapa | pedidos */
+/* Escritorio: taxistas | mapa | pedidos, a pantalla completa; cada panel hace su propio scroll. */
 @media (min-width: 1024px) {
+  .shell { height: 100dvh; }
   .grid {
-    grid-template-columns: minmax(240px, 1fr) minmax(0, 2fr) minmax(280px, 1fr);
-    grid-template-areas: 'drivers map trips';
+    min-height: 0; grid-template-columns: 280px minmax(0, 1fr) 372px;
+    grid-template-rows: minmax(0, 1fr); grid-template-areas: 'drivers map trips';
   }
-
-  .map {
-    height: calc(100vh - 6rem);
-  }
+  .map { height: auto; min-height: 0; }
+  .tripsScroll { flex: 1; overflow-y: auto; }
 }

@@ -21,7 +21,7 @@ export function Dashboard({ repo }: { repo: FleetRepo }) {
   const [loadKey, setLoadKey] = useState(0);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [selectedDriverId, setSelectedDriverId] = useState<string | null>(null);
-  const [formOpen, setFormOpen] = useState(true);
+  const [formOpen, setFormOpen] = useState(false);
   // Collections already delivered by a subscription: a late initial load must not overwrite them.
   const delivered = useRef({ drivers: false, trips: false });
 
@@ -67,6 +67,7 @@ export function Dashboard({ repo }: { repo: FleetRepo }) {
   const createTrip = useCallback(
     async (input: NewTripInput) => {
       await repo.createTrip(input);
+      setFormOpen(false);
     },
     [repo],
   );
@@ -94,8 +95,13 @@ export function Dashboard({ repo }: { repo: FleetRepo }) {
         </div>
       )}
       <main className={styles.grid}>
-        <div className={styles.drivers}>
-          <DriverList drivers={drivers} now={now} />
+        <div className={`${styles.pane} ${styles.drivers}`}>
+          <DriverList
+            drivers={drivers}
+            now={now}
+            selectedDriverId={selectedDriverId}
+            onSelectDriver={setSelectedDriverId}
+          />
         </div>
         <div className={styles.map}>
           <FleetMap
@@ -106,25 +112,30 @@ export function Dashboard({ repo }: { repo: FleetRepo }) {
             onSelectDriver={setSelectedDriverId}
           />
         </div>
-        <div className={styles.trips}>
-          <button
-            type="button"
-            className={styles.button}
-            aria-expanded={formOpen}
-            aria-controls="new-trip-panel"
-            onClick={() => setFormOpen((o) => !o)}
-          >
-            Nuevo pedido
-          </button>
-          <div id="new-trip-panel" hidden={!formOpen}>
+        <div className={`${styles.pane} ${styles.trips}`}>
+          <div className={styles.tripsTop}>
+            <h2>Pedidos</h2>
+            <button
+              type="button"
+              className={styles.button}
+              aria-expanded={formOpen}
+              aria-controls="new-trip-panel"
+              onClick={() => setFormOpen((o) => !o)}
+            >
+              Nuevo pedido
+            </button>
+          </div>
+          <div id="new-trip-panel" hidden={!formOpen} className={styles.formPanel}>
             {formOpen && <NewTripForm onSubmit={createTrip} />}
           </div>
-          <TripQueue
-            trips={trips}
-            drivers={drivers}
-            now={now}
-            onAssignClick={(t) => setSelectedTripId(t.id)}
-          />
+          <div className={styles.tripsScroll}>
+            <TripQueue
+              trips={trips}
+              drivers={drivers}
+              now={now}
+              onAssignClick={(t) => setSelectedTripId(t.id)}
+            />
+          </div>
         </div>
       </main>
       {selectedTrip && (

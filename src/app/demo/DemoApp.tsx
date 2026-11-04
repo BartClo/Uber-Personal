@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { FakeRepo } from "@/data/fakeRepo";
 import { demoDrivers, demoTrips, stepDrivers } from "@/demo/demoData";
 import { Dashboard } from "@/ui/Dashboard";
+import styles from "./DemoApp.module.css";
 
 const STEP_MS = 3_000;
 
@@ -30,17 +31,8 @@ export default function DemoApp() {
 
   return (
     <>
-      <p
-        role="note"
-        style={{
-          margin: 0,
-          padding: "4px 12px",
-          background: "#fff4ce",
-          color: "#3d3000",
-        }}
-      >
-        Modo demostración: datos simulados en este navegador, sin conexión a
-        Supabase.
+      <p role="note" className={styles.note}>
+        Modo demostración · datos simulados
       </p>
       <Dashboard repo={repo} />
     </>

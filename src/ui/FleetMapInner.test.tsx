@@ -6,6 +6,7 @@ afterEach(cleanup);
 import type { Driver, Trip } from '@/domain/types';
 
 vi.mock('react-leaflet', () => ({
+  useMap: () => ({ fitBounds: () => {}, panTo: () => {} }),
   MapContainer: ({ children }: { children: ReactNode }) => <div data-testid="map">{children}</div>,
   TileLayer: ({ attribution }: { attribution: string }) => <p>{attribution}</p>,
   Marker: ({ icon }: { icon: { options: { className: string; html: string } } }) => (

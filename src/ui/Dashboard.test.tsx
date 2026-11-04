@@ -43,6 +43,7 @@ describe('Dashboard', () => {
   it('crear un pedido lo muestra en la cola', async () => {
     setup();
     await screen.findByText('Carla Díaz');
+    await userEvent.click(screen.getByRole('button', { name: 'Nuevo pedido' }));
     const form = screen.getByRole('form', { name: 'Nuevo pedido' });
     await userEvent.type(within(form).getByLabelText('Nombre del cliente'), 'Pedro Soto');
     await userEvent.type(within(form).getByLabelText('Teléfono'), '999');
@@ -51,17 +52,19 @@ describe('Dashboard', () => {
     await userEvent.click(within(form).getByRole('button', { name: 'Crear pedido' }));
     const pending = screen.getByRole('list', { name: 'Pedidos en espera' });
     expect(await within(pending).findByText('Pedro Soto')).toBeInTheDocument();
+    expect(screen.queryByRole('form', { name: 'Nuevo pedido' })).not.toBeInTheDocument();
   });
 
   it('el botón "Nuevo pedido" oculta y muestra el formulario', async () => {
     setup();
     await screen.findByText('Carla Díaz');
     const toggle = screen.getByRole('button', { name: 'Nuevo pedido' });
-    expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByRole('form', { name: 'Nuevo pedido' })).not.toBeInTheDocument();
     await userEvent.click(toggle);
     expect(screen.getByRole('form', { name: 'Nuevo pedido' })).toBeInTheDocument();
+    await userEvent.click(toggle);
+    expect(screen.queryByRole('form', { name: 'Nuevo pedido' })).not.toBeInTheDocument();
   });
 
   it('asignar mueve el pedido a "En curso" y el taxista queda "En viaje"', async () => {

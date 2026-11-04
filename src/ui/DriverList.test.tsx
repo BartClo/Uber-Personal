@@ -1,6 +1,6 @@
 import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 afterEach(cleanup);
 import type { Driver } from '@/domain/types';
@@ -25,6 +25,26 @@ describe('DriverList', () => {
     const row = screen.getByText('Beto').closest('li')!;
     expect(row).not.toHaveAttribute('data-stale');
     expect(row).toHaveTextContent('Libre · hace 20 s');
+  });
+  it('desconectado no se confunde con sin señal', () => {
+    render(<DriverList now={now} drivers={[mk({ name: 'Sara', status: 'offline', lastSeenAt: null })]} />);
+    const row = screen.getByText('Sara').closest('li')!;
+    expect(row).toHaveTextContent('Desconectado · —');
+    expect(row).not.toHaveTextContent('Sin señal');
+  });
+  it('el filtro Libres excluye a los libres sin señal', async () => {
+    render(<DriverList now={now} drivers={[mk({ id: 'a', name: 'Fresca' }), mk({ id: 'b', name: 'Vieja', lastSeenAt: '2026-11-02T11:50:00Z' })]} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Libres' }));
+    expect(screen.getByText('Fresca')).toBeInTheDocument();
+    expect(screen.queryByText('Vieja')).not.toBeInTheDocument();
+  });
+  it('seleccionar un taxista avisa y marca la fila', async () => {
+    const onSelect = vi.fn();
+    render(<DriverList now={now} drivers={[mk({ id: 'x', name: 'Eva' })]} selectedDriverId="x" onSelectDriver={onSelect} />);
+    const btn = screen.getByRole('button', { name: /Eva/ });
+    expect(btn).toHaveAttribute('aria-current', 'true');
+    await userEvent.click(btn);
+    expect(onSelect).toHaveBeenCalledWith('x');
   });
   it('filtro Libres oculta busy y offline; cuenta y orden', async () => {
     const drivers = [
