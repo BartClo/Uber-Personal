@@ -71,12 +71,12 @@ export class FakeDriverRepo implements DriverRepo {
     };
   }
 
-  advanceTrip(tripId: string): Promise<AdvanceResult> {
+  advanceTrip(tripId: string, expectedStatus: Trip['status']): Promise<AdvanceResult> {
     const me = this.drivers.find((d) => d.id === this.meId);
     if (!me) return Promise.resolve({ ok: false, error: 'driver_not_found' });
     const trip = this.trips.find((t) => t.id === tripId && t.driverId === me.id);
     if (!trip) return Promise.resolve({ ok: false, error: 'trip_not_found' });
-    const next = nextTripStatus(trip.status);
+    const next = trip.status === expectedStatus ? nextTripStatus(trip.status) : null;
     if (!next) return Promise.resolve({ ok: false, error: 'not_advanceable' });
     trip.status = next;
     if (next === 'completed') me.status = 'free';
@@ -118,6 +118,11 @@ export class FakeDriverRepo implements DriverRepo {
   addTrip(trip: Trip): void {
     this.trips.push({ ...trip });
     this.emit();
+  }
+
+  /** Cambio que no llega por realtime, como cuando el viaje deja de ser visible por RLS. */
+  setTripStatusQuietly(id: string, status: Trip['status']): void {
+    this.trips = this.trips.map((t) => (t.id === id ? { ...t, status } : t));
   }
 
   patchDriver(id: string, patch: Partial<Driver>): void {

@@ -14,6 +14,15 @@ export type ClientValidation =
   | { ok: false; errors: ClientRequestErrors };
 
 const PHONE_RE = /^[0-9+()./ -]+$/;
+/**
+ * Mismo conjunto que request_trip en SQL: controles C0/C1, guion suave y marcas de formato (ancho
+ * cero, bidi, BOM). Pueden falsear lo que el operador o el taxista leen en pantalla.
+ */
+const UNSAFE_TEXT_RE =
+  /[\u0000-\u001f\u007f-\u009f\u00ad\u061c\u180e\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]/;
+
+/** Dígitos del teléfono: el límite de pedidos no debe depender de cómo se escribió. */
+export const phoneDigits = (phone: string): string => phone.replace(/[^0-9]/g, '');
 
 export function validateClientRequest(input: ClientRequestInput): ClientValidation {
   const value: ClientRequestInput = {
@@ -26,12 +35,18 @@ export function validateClientRequest(input: ClientRequestInput): ClientValidati
   if (!value.pickup) errors.pickup = 'Falta la dirección de recogida';
   else if (value.pickup.length > CLIENT_LIMITS.address)
     errors.pickup = `La dirección de recogida admite hasta ${CLIENT_LIMITS.address} caracteres`;
+  else if (UNSAFE_TEXT_RE.test(value.pickup))
+    errors.pickup = 'La dirección de recogida contiene caracteres no permitidos';
   if (!value.dropoff) errors.dropoff = 'Falta el destino';
   else if (value.dropoff.length > CLIENT_LIMITS.address)
     errors.dropoff = `El destino admite hasta ${CLIENT_LIMITS.address} caracteres`;
+  else if (UNSAFE_TEXT_RE.test(value.dropoff))
+    errors.dropoff = 'El destino contiene caracteres no permitidos';
   if (!value.name) errors.name = 'Falta tu nombre';
   else if (value.name.length > CLIENT_LIMITS.name)
     errors.name = `El nombre admite hasta ${CLIENT_LIMITS.name} caracteres`;
+  else if (UNSAFE_TEXT_RE.test(value.name))
+    errors.name = 'El nombre contiene caracteres no permitidos';
   if (!value.phone) errors.phone = 'Falta tu teléfono';
   else if (
     value.phone.length > CLIENT_LIMITS.phone ||

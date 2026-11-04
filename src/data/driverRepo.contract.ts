@@ -55,12 +55,15 @@ export function runDriverRepoContract(makeHarness: () => Promise<DriverHarness>)
       const h = await makeHarness();
       await h.setMyStatus('busy');
       const id = await h.addTrip('assigned', h.meId);
-      for (const expected of ['en_route', 'on_board'] as const) {
-        const res = await h.repo.advanceTrip(id);
-        expect(res.ok && res.trip.status).toBe(expected);
+      for (const [from, to] of [
+        ['assigned', 'en_route'],
+        ['en_route', 'on_board'],
+      ] as const) {
+        const res = await h.repo.advanceTrip(id, from);
+        expect(res.ok && res.trip.status).toBe(to);
         expect((await h.readDriver(h.meId)).status).toBe('busy');
       }
-      const last = await h.repo.advanceTrip(id);
+      const last = await h.repo.advanceTrip(id, 'on_board');
       expect(last.ok && last.trip.status).toBe('completed');
       expect((await h.readDriver(h.meId)).status).toBe('free');
       expect(await h.repo.getCurrentTrip()).toBeNull();
@@ -71,17 +74,45 @@ export function runDriverRepoContract(makeHarness: () => Promise<DriverHarness>)
       async (status) => {
         const h = await makeHarness();
         const id = await h.addTrip(status, h.meId);
-        expect(await h.repo.advanceTrip(id)).toEqual({ ok: false, error: 'not_advanceable' });
+        expect(await h.repo.advanceTrip(id, status)).toEqual({
+          ok: false,
+          error: 'not_advanceable',
+        });
         expect(await h.readTripStatus(id)).toBe(status);
       },
     );
 
+    it('advanceTrip no avanza si el estado no es el que el taxista estaba viendo', async () => {
+      const h = await makeHarness();
+      const id = await h.addTrip('en_route', h.meId);
+      expect(await h.repo.advanceTrip(id, 'assigned')).toEqual({
+        ok: false,
+        error: 'not_advanceable',
+      });
+      expect(await h.readTripStatus(id)).toBe('en_route');
+    });
+
+    it('dos avances simultáneos desde el mismo estado: solo uno surte efecto', async () => {
+      const h = await makeHarness();
+      const id = await h.addTrip('assigned', h.meId);
+      const results = await Promise.all([
+        h.repo.advanceTrip(id, 'assigned'),
+        h.repo.advanceTrip(id, 'assigned'),
+      ]);
+      expect(results.filter((r) => r.ok)).toHaveLength(1);
+      expect(results.filter((r) => !r.ok)).toEqual([{ ok: false, error: 'not_advanceable' }]);
+      expect(await h.readTripStatus(id)).toBe('en_route');
+    });
+
     it('advanceTrip no toca viajes ajenos ni desconocidos', async () => {
       const h = await makeHarness();
       const foreign = await h.addTrip('assigned', OTHER_DRIVER_ID);
-      expect(await h.repo.advanceTrip(foreign)).toEqual({ ok: false, error: 'trip_not_found' });
+      expect(await h.repo.advanceTrip(foreign, 'assigned')).toEqual({ ok: false, error: 'trip_not_found' });
       expect(await h.readTripStatus(foreign)).toBe('assigned');
-      expect(await h.repo.advanceTrip(UNKNOWN)).toEqual({ ok: false, error: 'trip_not_found' });
+      expect(await h.repo.advanceTrip(UNKNOWN, 'assigned')).toEqual({
+        ok: false,
+        error: 'trip_not_found',
+      });
     });
 
     it('reportLocation guarda posición y hora solo del taxista propio', async () => {
@@ -140,7 +171,7 @@ export function runDriverRepoContract(makeHarness: () => Promise<DriverHarness>)
       expect(await repo.getCurrentTrip()).toBeNull();
       expect(await repo.reportLocation(1, 1)).toEqual(error);
       expect(await repo.setOnline(true)).toEqual(error);
-      expect(await repo.advanceTrip(trip)).toEqual(error);
+      expect(await repo.advanceTrip(trip, 'assigned')).toEqual(error);
     });
 
     it('subscribe avisa al asignar un viaje; al desuscribirse deja de avisar', async () => {
@@ -170,7 +201,7 @@ export function runDriverRepoContract(makeHarness: () => Promise<DriverHarness>)
       const cb = vi.fn();
       const off = h.repo.subscribe(cb);
       cb.mockClear();
-      await h.repo.advanceTrip(id);
+      await h.repo.advanceTrip(id, 'assigned');
       await vi.waitFor(() => expect(cb).toHaveBeenCalled());
       off();
     });

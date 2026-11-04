@@ -204,7 +204,7 @@ async function check(p: PromiseLike<{ error: { message: string } | null }>): Pro
       const calls = [
         anon.rpc('driver_report_location', { p_lat: 1, p_lng: 1 }),
         anon.rpc('driver_set_online', { p_online: true }),
-        anon.rpc('driver_advance_trip', { p_trip_id: myTrip }),
+        anon.rpc('driver_advance_trip', { p_trip_id: myTrip, p_expected_status: 'assigned' }),
       ];
       for (const res of await Promise.all(calls)) expect(res.error).not.toBeNull();
     });
@@ -223,11 +223,65 @@ async function check(p: PromiseLike<{ error: { message: string } | null }>): Pro
       expect((await readDriver(meId)).lastSeenAt).toBeNull();
     });
 
-    it('dos avances simultáneos se serializan: nunca saltan ni fallan', async () => {
+    it.each(['completed', 'cancelled'] as const)(
+      'no lee los datos del cliente de un viaje propio en %s',
+      async (status) => {
+        const id = await addTrip(status, meId);
+        const { data, error } = await driver
+          .from('trips')
+          .select('customer_name, customer_phone, pickup_address, dropoff_address')
+          .eq('id', id);
+        expect(error).toBeNull();
+        expect(data).toEqual([]);
+      },
+    );
+
+    it('pierde el acceso al viaje en cuanto este termina', async () => {
       const repo = createSupabaseDriverRepo(driver);
-      const results = await Promise.all([repo.advanceTrip(myTrip), repo.advanceTrip(myTrip)]);
-      expect(results.every((r) => r.ok)).toBe(true);
-      expect(await readTripStatus(myTrip)).toBe('on_board');
+      await check(admin.from('trips').update({ status: 'cancelled' }).eq('id', myTrip));
+      expect(await repo.getCurrentTrip()).toBeNull();
+      const { data } = await driver.from('trips').select('id').eq('id', myTrip);
+      expect(data).toEqual([]);
+    });
+
+    it('no alcanza el token de seguimiento por ninguna vía', async () => {
+      const column = await driver.from('trips').select('tracking_token');
+      expect(column.error).not.toBeNull();
+      const { data: rows } = await driver.from('trips').select('*').eq('id', myTrip);
+      expect(JSON.stringify(rows)).not.toContain('token');
+      const table = await driver.from('trip_tracking').select('*');
+      expect(table.error?.code).toBe('42501');
+      const { data } = await driver.rpc('driver_advance_trip', {
+        p_trip_id: myTrip,
+        p_expected_status: 'assigned',
+      });
+      expect(Object.keys((data as { trip: object }).trip).sort()).toEqual(
+        [
+          'assigned_at',
+          'created_at',
+          'customer_name',
+          'customer_phone',
+          'driver_id',
+          'dropoff_address',
+          'id',
+          'pickup_address',
+          'pickup_lat',
+          'pickup_lng',
+          'source',
+          'status',
+        ].sort(),
+      );
+    });
+
+    it('la firma antigua de driver_advance_trip ya no existe; el estado nulo no avanza', async () => {
+      const old = await driver.rpc('driver_advance_trip', { p_trip_id: myTrip });
+      expect(old.error).not.toBeNull();
+      const { data } = await driver.rpc('driver_advance_trip', {
+        p_trip_id: myTrip,
+        p_expected_status: null,
+      });
+      expect(data).toEqual({ ok: false, error: 'not_advanceable' });
+      expect(await readTripStatus(myTrip)).toBe('assigned');
     });
 
     it('el admin sigue viendo todo y puede asignar', async () => {

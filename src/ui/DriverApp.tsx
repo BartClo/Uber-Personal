@@ -30,6 +30,8 @@ const NETWORK_ERROR = 'No se pudo actualizar. Revisa tu conexión e intenta de n
  * de un doble toque contaría como la acción siguiente y se saltaría un estado del viaje.
  */
 const ADVANCE_COOLDOWN_MS = 800;
+/** RLS oculta el evento de un viaje que deja de estar en curso (p. ej. si el admin lo cancela). */
+const REFRESH_EVERY_MS = 15_000;
 
 type Load =
   | { kind: 'loading' }
@@ -70,7 +72,9 @@ export function DriverApp({
     const offChanges = repo.subscribe(() => void refresh());
     const offConnection = repo.subscribeConnection(setConnection);
     void Promise.resolve().then(refresh);
+    const timer = setInterval(() => void refresh(), REFRESH_EVERY_MS);
     return () => {
+      clearInterval(timer);
       offChanges();
       offConnection();
     };
@@ -169,6 +173,8 @@ function Screen({
     } catch (e) {
       console.error('[DriverApp] action', e);
       setError(NETWORK_ERROR);
+      // Quizá la acción sí se aplicó y solo se perdió la respuesta: muestra el estado real.
+      await refresh();
     } finally {
       setBusy(false);
     }
@@ -183,9 +189,9 @@ function Screen({
         : ADVANCE_ERRORS.driver_not_found;
     });
 
-  const advance = (id: string) =>
+  const advance = ({ id, status }: Trip) =>
     run(async () => {
-      const res = await repo.advanceTrip(id);
+      const res = await repo.advanceTrip(id, status);
       if (!res.ok) return ADVANCE_ERRORS[res.error];
       await refresh();
       await new Promise((r) => setTimeout(r, advanceCooldownMs));
@@ -240,7 +246,7 @@ function Screen({
           </p>
         )}
         {trip ? (
-          <TripCard trip={trip} busy={busy} onAdvance={() => void advance(trip.id)} />
+          <TripCard trip={trip} busy={busy} onAdvance={() => void advance(trip)} />
         ) : (
           <section className={styles.waiting}>
             <h2>{online ? 'Esperando un viaje' : 'Estás desconectado'}</h2>

@@ -37,6 +37,31 @@ export function runClientRepoContract(makeRepo: () => Promise<ClientRepo>): void
       });
     });
 
+    it.each([
+      ['control', 'Ana\u0007B'],
+      ['zero-width', 'Ana\u200bB'],
+      ['bidi', 'Ana\u202eB'],
+      ['BOM', 'Ana\ufeffB'],
+    ])('rejects %s characters in names and addresses', async (_name, bad) => {
+      const repo = await makeRepo();
+      const invalid = { ok: false, error: 'invalid_input' };
+      expect(await repo.requestTrip({ ...valid('555 0101'), name: bad })).toEqual(invalid);
+      expect(await repo.requestTrip({ ...valid('555 0101'), pickup: bad })).toEqual(invalid);
+      expect(await repo.requestTrip({ ...valid('555 0101'), dropoff: bad })).toEqual(invalid);
+    });
+
+    it('the limit compares phones by digits, ignoring their format', async () => {
+      const repo = await makeRepo();
+      const n = Math.floor(Math.random() * 9000 + 1000);
+      for (const phone of [`777 ${n}`, `777-${n}`, `(777) ${n}`]) {
+        expect((await repo.requestTrip(valid(phone))).ok).toBe(true);
+      }
+      expect(await repo.requestTrip(valid(`777${n}`))).toEqual({
+        ok: false,
+        error: 'too_many_requests',
+      });
+    });
+
     it('limits to 3 active trips per phone', async () => {
       const repo = await makeRepo();
       const phone = `555 ${Math.floor(Math.random() * 9000 + 1000)}`;

@@ -25,7 +25,90 @@ const ZERO_UUID = '00000000-0000-0000-0000-000000000000';
     await admin.from('drivers').delete().neq('id', ZERO_UUID);
   });
 
+  async function tripIdOf(token: string): Promise<string> {
+    const { data, error } = await admin
+      .from('trip_tracking')
+      .select('trip_id')
+      .eq('token', token)
+      .single();
+    if (error) throw new Error(error.message);
+    return (data as { trip_id: string }).trip_id;
+  }
+
+  async function newToken(phone: string): Promise<string> {
+    const r = await createSupabaseClientRepo(anon).requestTrip({
+      pickup: 'A',
+      dropoff: 'B',
+      name: 'Eva',
+      phone,
+    });
+    if (!r.ok) throw new Error(r.error);
+    return r.token;
+  }
+
+  const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
+
   runClientRepoContract(async () => createSupabaseClientRepo(anon));
+
+  describe('get_trip_status: caducidad', () => {
+    it.each(['completed', 'cancelled'])('%s: visible 11 h, not_found a las 13 h', async (status) => {
+      const repo = createSupabaseClientRepo(anon);
+      const token = await newToken(`600 201 ${status.length}`);
+      const id = await tripIdOf(token);
+      await admin.from('trips').update({ status }).eq('id', id);
+      const { data } = await admin.from('trips').select('finished_at').eq('id', id).single();
+      expect(Date.now() - Date.parse((data as { finished_at: string }).finished_at)).toBeLessThan(60_000);
+      await admin.from('trips').update({ finished_at: hoursAgo(11) }).eq('id', id);
+      expect((await repo.getStatus(token)).ok).toBe(true);
+      await admin.from('trips').update({ finished_at: hoursAgo(13) }).eq('id', id);
+      expect(await repo.getStatus(token)).toEqual({ ok: false, error: 'not_found' });
+    });
+
+    it('un viaje sin terminar no caduca, por antiguo que sea', async () => {
+      const token = await newToken('600 200 002');
+      await admin.from('trips').update({ created_at: hoursAgo(48) }).eq('id', await tripIdOf(token));
+      expect((await createSupabaseClientRepo(anon).getStatus(token)).ok).toBe(true);
+    });
+  });
+
+  describe('request_trip: límite', () => {
+    it('los pedidos de hace más de 2 h no cuentan: el bloqueo se cura solo', async () => {
+      const phone = '600 200 003';
+      const ids = [
+        await tripIdOf(await newToken(phone)),
+        await tripIdOf(await newToken(phone)),
+        await tripIdOf(await newToken(phone)),
+      ];
+      const repo = createSupabaseClientRepo(anon);
+      const input = { pickup: 'A', dropoff: 'B', name: 'Eva', phone };
+      expect(await repo.requestTrip(input)).toEqual({ ok: false, error: 'too_many_requests' });
+      await admin.from('trips').update({ created_at: hoursAgo(3) }).in('id', ids);
+      expect((await repo.requestTrip(input)).ok).toBe(true);
+    });
+
+    it('peticiones simultáneas no superan el límite', async () => {
+      const repo = createSupabaseClientRepo(anon);
+      const input = { pickup: 'A', dropoff: 'B', name: 'Eva', phone: '600 200 004' };
+      const results = await Promise.all(Array.from({ length: 8 }, () => repo.requestTrip(input)));
+      expect(results.filter((r) => r.ok)).toHaveLength(3);
+    });
+  });
+
+  it('anon no puede escribir directamente en trips ni drivers', async () => {
+    const calls = [
+      anon.from('trips').update({ status: 'cancelled' }).eq('id', ZERO_UUID),
+      anon.from('trips').delete().eq('id', ZERO_UUID),
+      anon.from('drivers').update({ status: 'free' }).eq('id', ZERO_UUID),
+      anon.from('drivers').delete().eq('id', ZERO_UUID),
+      anon.from('drivers').insert({ name: 'x', taxi_number: '1', phone: '1' }),
+    ];
+    for (const res of await Promise.all(calls)) expect(res.error?.code).toBe('42501');
+  });
+
+  it('anon no accede a trip_tracking', async () => {
+    const res = await anon.from('trip_tracking').select('*');
+    expect(res.error?.code).toBe('42501');
+  });
 
   it('creates a pending client_app trip visible to the admin side', async () => {
     const repo = createSupabaseClientRepo(anon);
@@ -58,7 +141,7 @@ const ZERO_UUID = '00000000-0000-0000-0000-000000000000';
     const repo = createSupabaseClientRepo(anon);
     const r = await repo.requestTrip({ pickup: 'A', dropoff: 'B', name: 'Mar', phone: '600 123 456' });
     if (!r.ok) throw new Error('expected ok');
-    await admin.from('trips').update({ status: 'assigned', driver_id: drv?.id }).eq('tracking_token', r.token);
+    await admin.from('trips').update({ status: 'assigned', driver_id: drv?.id }).eq('id', await tripIdOf(r.token));
 
     const { data, error } = await anon.rpc('get_trip_status', { p_token: r.token });
     expect(error).toBeNull();

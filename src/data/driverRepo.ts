@@ -1,4 +1,4 @@
-import type { Driver, DriverStatus, Trip } from '../domain/types';
+import type { Driver, DriverStatus, Trip, TripStatus } from '../domain/types';
 import type { ConnectionState, Unsubscribe } from './repo';
 
 export type AdvanceError = 'driver_not_found' | 'trip_not_found' | 'not_advanceable';
@@ -20,7 +20,8 @@ export interface DriverRepo {
   /** Avisa que algo cambió; quien escucha vuelve a leer. */
   subscribe(cb: () => void): Unsubscribe;
   subscribeConnection(cb: (s: ConnectionState) => void): Unsubscribe;
-  advanceTrip(tripId: string): Promise<AdvanceResult>;
+  /** expectedStatus: el estado que el taxista está viendo; si ya cambió, no se avanza. */
+  advanceTrip(tripId: string, expectedStatus: TripStatus): Promise<AdvanceResult>;
   reportLocation(lat: number, lng: number): Promise<ReportResult>;
   setOnline(online: boolean): Promise<SetOnlineResult>;
 }

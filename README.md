@@ -61,6 +61,11 @@ where email = 'admin@ejemplo.com';
 
 Los clientes piden taxi sin cuenta en `/pedir` y siguen su viaje en `/pedir/<token>` (el token va en la URL, así que pueden recargar). El pedido entra como `pending` con origen `client_app` y aparece en la cola del panel admin por Realtime, sin cambios.
 
-- Migración `supabase/migrations/0003_client_app.sql`: columna `trips.tracking_token` y dos funciones `security definer` (`request_trip`, `get_trip_status`) ejecutables por `anon`. Los anónimos no tienen acceso directo a `trips` ni `drivers`; el seguimiento solo devuelve estado, direcciones, nombre de pila y número de taxi (nunca teléfonos ni coordenadas).
+- Migraciones `0003_client_app.sql` y `0004_hardening.sql`: tabla `trip_tracking` con el token (RLS sin políticas, fuera de Realtime) y dos funciones `security definer` (`request_trip`, `get_trip_status`) ejecutables por `anon`. Los anónimos no tienen acceso directo a `trips` ni `drivers`; el seguimiento solo devuelve estado, direcciones, nombre de pila y número de taxi (nunca teléfonos ni coordenadas) y el enlace caduca 12 horas después de terminar el viaje.
 - Prueba de integración: `src/data/clientRepo.supabase.test.ts` (se omite sin `SUPABASE_TEST_URL`).
-- **Antes de publicar:** el formulario público solo tiene un límite básico (máx. 3 viajes activos por teléfono). Hace falta CAPTCHA y rate limiting (por IP, en el borde o en una Edge Function) antes de exponerlo a Internet.
+- **Antes de publicar:** el formulario público solo tiene un límite básico (máx. 3 viajes activos creados en las últimas 2 horas por teléfono, comparando solo los dígitos). **Pendiente:** CAPTCHA y rate limiting (por IP, en el borde o en una Edge Function) antes de exponerlo a Internet.
+
+## Antes de producción
+
+- **Desactiva el registro abierto** (`enable_signup = false`, Authentication > Providers) y **sube la longitud mínima de contraseña** (`minimum_password_length`, el valor local es 6). Las cuentas se crean con `npm run create-driver` o desde el panel de Supabase.
+- **Al dar de baja a un taxista, desvincula su cuenta**: `update public.drivers set user_id = null where id = '<id>';` (o borra la fila del taxi) y elimina el usuario en Authentication. Sin el vínculo, la cuenta deja de ver viajes y de enviar ubicación. Si tenía un viaje activo, cancélalo antes desde el panel.

@@ -129,6 +129,53 @@ describe('DriverApp', () => {
     expect(screen.getByRole('button', { name: 'Voy en camino' })).toBeEnabled();
   });
 
+  it('avanza indicando el estado que el taxista estaba viendo', async () => {
+    const { repo } = setup({ status: 'busy' }, fakeTrip(T1, 'assigned', ME));
+    const spy = vi.spyOn(repo, 'advanceTrip');
+    await userEvent.click(await screen.findByRole('button', { name: 'Voy en camino' }));
+    expect(spy).toHaveBeenCalledWith(T1, 'assigned');
+  });
+
+  it('si el viaje cambió por fuera, lo explica y muestra el estado real', async () => {
+    const { repo } = setup({ status: 'busy' }, fakeTrip(T1, 'assigned', ME));
+    const button = await screen.findByRole('button', { name: 'Voy en camino' });
+    repo.setTripStatusQuietly(T1, 'en_route');
+    await userEvent.click(button);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/cambió de estado/);
+    expect(await screen.findByRole('button', { name: 'Cliente a bordo' })).toBeInTheDocument();
+    expect(repo.tripById(T1).status).toBe('en_route');
+  });
+
+  it('un error de red al avanzar también vuelve a leer el viaje', async () => {
+    const { repo } = setup({ status: 'busy' }, fakeTrip(T1, 'assigned', ME));
+    await screen.findByRole('button', { name: 'Voy en camino' });
+    vi.spyOn(repo, 'advanceTrip').mockRejectedValueOnce(new Error('red'));
+    repo.setTripStatusQuietly(T1, 'cancelled');
+    await userEvent.click(screen.getByRole('button', { name: 'Voy en camino' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/No se pudo actualizar/);
+    expect(await screen.findByText(/Esperando un viaje/)).toBeInTheDocument();
+  });
+
+  it('cada 15 s vuelve a leer, sin evento realtime; al desmontar deja de hacerlo', async () => {
+    vi.useFakeTimers();
+    try {
+      const { repo } = setup({ status: 'busy' }, fakeTrip(T1, 'assigned', ME));
+      await act(() => vi.advanceTimersByTimeAsync(0));
+      expect(screen.getByRole('button', { name: 'Voy en camino' })).toBeInTheDocument();
+      repo.setTripStatusQuietly(T1, 'cancelled');
+      await act(() => vi.advanceTimersByTimeAsync(14_000));
+      expect(screen.getByRole('button', { name: 'Voy en camino' })).toBeInTheDocument();
+      await act(() => vi.advanceTimersByTimeAsync(1_000));
+      expect(screen.getByText(/Esperando un viaje/)).toBeInTheDocument();
+      const spy = vi.spyOn(repo, 'getCurrentTrip');
+      cleanup();
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('muestra un viaje que llega por realtime', async () => {
     const { repo } = setup();
     await screen.findByText(/Esperando un viaje/);

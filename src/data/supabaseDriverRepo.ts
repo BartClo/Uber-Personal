@@ -1,5 +1,5 @@
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
-import type { Driver, Trip } from '../domain/types';
+import type { Driver, Trip, TripStatus } from '../domain/types';
 import type { AdvanceResult, DriverRepo, ReportResult, SetOnlineResult } from './driverRepo';
 import type { ConnectionState, Unsubscribe } from './repo';
 import { rowToDriver, rowToTrip, type DriverRow, type TripRow } from './supabaseMapping';
@@ -10,6 +10,8 @@ type AdvanceResponse = { ok: true; trip: TripRow } | RpcFailure<Extract<AdvanceR
 /**
  * Repo del taxista. Lecturas sujetas a RLS y escrituras solo por RPC. Un canal realtime por
  * instancia: RLS filtra los eventos a las filas propias y cada evento avisa a los suscriptores.
+ * Un viaje que deja de estar en curso ya no pasa RLS y su evento no llega: quien use este repo
+ * debe releer también con un temporizador.
  */
 export function createSupabaseDriverRepo(client: SupabaseClient): DriverRepo {
   const subs = new Set<() => void>();
@@ -106,8 +108,11 @@ export function createSupabaseDriverRepo(client: SupabaseClient): DriverRepo {
       return off;
     },
 
-    async advanceTrip(tripId: string): Promise<AdvanceResult> {
-      const res = await rpc<AdvanceResponse>('driver_advance_trip', { p_trip_id: tripId });
+    async advanceTrip(tripId: string, expectedStatus: TripStatus): Promise<AdvanceResult> {
+      const res = await rpc<AdvanceResponse>('driver_advance_trip', {
+        p_trip_id: tripId,
+        p_expected_status: expectedStatus,
+      });
       if (!res.ok) return res;
       notify();
       return { ok: true, trip: rowToTrip(res.trip) };

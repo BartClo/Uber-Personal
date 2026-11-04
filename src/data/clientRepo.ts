@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { validateClientRequest, type ClientRequestInput } from '../domain/clientTrip';
+import { phoneDigits, validateClientRequest, type ClientRequestInput } from '../domain/clientTrip';
 import type { TripStatus } from '../domain/types';
 
 export type RequestTripError = 'invalid_input' | 'too_many_requests';
@@ -22,7 +22,10 @@ export interface ClientRepo {
   getStatus(token: string): Promise<GetStatusResult>;
 }
 
-/** In-memory implementation. Mirrors the SQL rules (validation, 3 active trips per phone). */
+/**
+ * In-memory implementation. Mirrors the SQL rules (validation, 3 active trips per phone digits),
+ * except the 2-hour window and the 12-hour link expiry, which are time-based and tested in SQL.
+ */
 export class FakeClientRepo implements ClientRepo {
   private trips = new Map<string, ClientTripView & { phone: string }>();
   private failures = 0;
@@ -32,7 +35,7 @@ export class FakeClientRepo implements ClientRepo {
     const v = validateClientRequest(input);
     if (!v.ok) return { ok: false, error: 'invalid_input' };
     const active = [...this.trips.values()].filter(
-      (t) => t.phone === v.value.phone && t.status !== 'completed' && t.status !== 'cancelled',
+      (t) => phoneDigits(t.phone) === phoneDigits(v.value.phone) && t.status !== 'completed' && t.status !== 'cancelled',
     ).length;
     if (active >= 3) return { ok: false, error: 'too_many_requests' };
     this.counter += 1;
