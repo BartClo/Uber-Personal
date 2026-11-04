@@ -56,3 +56,11 @@ where email = 'admin@ejemplo.com';
 ```
 
 3. El usuario debe cerrar sesión y volver a entrar para que el JWT incluya el rol.
+
+## App del cliente (`/pedir`)
+
+Los clientes piden taxi sin cuenta en `/pedir` y siguen su viaje en `/pedir/<token>` (el token va en la URL, así que pueden recargar). El pedido entra como `pending` con origen `client_app` y aparece en la cola del panel admin por Realtime, sin cambios.
+
+- Migración `supabase/migrations/0003_client_app.sql`: columna `trips.tracking_token` y dos funciones `security definer` (`request_trip`, `get_trip_status`) ejecutables por `anon`. Los anónimos no tienen acceso directo a `trips` ni `drivers`; el seguimiento solo devuelve estado, direcciones, nombre de pila y número de taxi (nunca teléfonos ni coordenadas).
+- Prueba de integración: `src/data/clientRepo.supabase.test.ts` (se omite sin `SUPABASE_TEST_URL`).
+- **Antes de publicar:** el formulario público solo tiene un límite básico (máx. 3 viajes activos por teléfono). Hace falta CAPTCHA y rate limiting (por IP, en el borde o en una Edge Function) antes de exponerlo a Internet.
